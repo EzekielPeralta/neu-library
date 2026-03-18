@@ -187,7 +187,7 @@ export default function WelcomePage() {
      STUDENT WELCOME — after credential login, goes to dashboard
   ───────────────────────────────────────────────────────── */
   return (
-    <div style={{ height:"100vh", overflow:"hidden", background:"#F0F4FF", fontFamily:"'DM Sans',sans-serif", display:"flex", flexDirection:"column" }}>
+    <div style={{ height:"100vh", overflow:"auto", background:"#F0F4FF", fontFamily:"'DM Sans',sans-serif", display:"flex", flexDirection:"column" }}>
 
       {/* HEADER */}
       <header style={{ background:"#fff", borderBottom:"1px solid #E2E8F0", padding:"0 24px", height:58, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 1px 8px rgba(15,40,80,.07)" }}>
@@ -207,12 +207,12 @@ export default function WelcomePage() {
       </header>
 
       {/* BODY */}
-      <div style={{ flex:1, overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", padding:"14px 20px" }}>
+      <div style={{ flex:1, overflow:"auto", display:"flex", alignItems:"center", justifyContent:"center", padding:"14px 20px" }}>
         <div style={{ width:"100%", maxWidth:1060, height:"100%", maxHeight:600, display:"flex", gap:20, alignItems:"stretch" }}>
 
           {/* LEFT */}
           <div style={{ flex:"0 0 280px", display:"flex", flexDirection:"column", gap:14 }} className="welcome-left">
-            <div style={{ background:"linear-gradient(145deg,#080f1e,#0f2040,#162d55)", border:"1px solid rgba(212,175,55,.18)", borderRadius:18, padding:"20px 18px", flex:1, display:"flex", flexDirection:"column", justifyContent:"space-between", position:"relative", overflow:"hidden", boxShadow:"0 14px 40px rgba(15,32,64,.35)" }}>
+            <div style={{ background:"linear-gradient(145deg,#080f1e,#0f2040,#162d55)", border:"1px solid rgba(212,175,55,.18)", borderRadius:18, padding:"20px 18px", flex:1, display:"flex", flexDirection:"column", justifyContent:"space-between", position:"relative", overflow:"auto", boxShadow:"0 14px 40px rgba(15,32,64,.35)" }}>
               <div style={{ position:"absolute", top:-35, right:-35, width:130, height:130, borderRadius:"50%", background:"rgba(255,255,255,.03)" }} />
               <div style={{ position:"relative", zIndex:2 }}>
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>

@@ -353,7 +353,7 @@ export default function KioskPage() {
   // ══ TIMEOUT RESULT SCREEN ══
   if (showResult && resultFlow === "timeout" && resultStudent) {
     return (
-      <div style={{ height:"100vh", overflow:"hidden", fontFamily:"'DM Sans',sans-serif", background:"linear-gradient(145deg,#060d1a 0%,#0d1f3e 40%,#162d55 70%,#0a1628 100%)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", position:"relative", color:"#fff" }}>
+      <div style={{ height:"100vh", overflow:"auto", fontFamily:"'DM Sans',sans-serif", background:"linear-gradient(145deg,#060d1a 0%,#0d1f3e 40%,#162d55 70%,#0a1628 100%)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", position:"relative", color:"#fff" }}>
         <div style={{ position:"fixed", inset:0, backgroundImage:"radial-gradient(circle at 2px 2px,rgba(255,255,255,.025) 1px,transparent 0)", backgroundSize:"28px 28px", pointerEvents:"none" }} />
         <div style={{ position:"fixed", top:0, left:0, right:0, height:2, background:"linear-gradient(90deg,transparent,rgba(212,175,55,.7),transparent)", pointerEvents:"none" }} />
         <div style={{ position:"fixed", top:"-15%", left:"-10%", width:500, height:500, borderRadius:"50%", background:"radial-gradient(circle,rgba(30,64,175,.18),transparent 68%)", filter:"blur(70px)", pointerEvents:"none" }} />
@@ -410,7 +410,7 @@ export default function KioskPage() {
 
   // ══ MAIN KIOSK SCREEN ══
   return (
-    <div style={{ height:"100vh", overflow:"hidden", fontFamily:"'DM Sans',sans-serif", background:"linear-gradient(145deg,#060d1a 0%,#0d1f3e 40%,#162d55 70%,#0a1628 100%)", display:"flex", position:"relative" }}>
+    <div style={{ height:"100vh", overflow:"auto", fontFamily:"'DM Sans',sans-serif", background:"linear-gradient(145deg,#060d1a 0%,#0d1f3e 40%,#162d55 70%,#0a1628 100%)", display:"flex", position:"relative" }}>
 
       <div style={{ position:"fixed", inset:0, backgroundImage:"radial-gradient(circle at 2px 2px,rgba(255,255,255,.025) 1px,transparent 0)", backgroundSize:"28px 28px", pointerEvents:"none", zIndex:0 }} />
       <div style={{ position:"fixed", top:"-15%", left:"-10%", width:520, height:520, borderRadius:"50%", background:"radial-gradient(circle,rgba(30,64,175,.2),transparent 68%)", filter:"blur(70px)", pointerEvents:"none", zIndex:0 }} />
@@ -520,7 +520,7 @@ export default function KioskPage() {
             {/* QR tab */}
             {tab==="qr" && (
               <div>
-                <div style={{ background:"rgba(0,0,0,.3)", border:"1px solid rgba(255,255,255,.1)", borderRadius:16, padding:14, marginBottom:12, position:"relative", overflow:"hidden" }}>
+                <div style={{ background:"rgba(0,0,0,.3)", border:"1px solid rgba(255,255,255,.1)", borderRadius:16, padding:14, marginBottom:12, position:"relative", overflow:"auto" }}>
                   {[
                     {top:8,left:8,   borderTop:"2px solid #DAA520",borderLeft:"2px solid #DAA520",  borderRadius:"4px 0 0 0"},
                     {top:8,right:8,  borderTop:"2px solid #DAA520",borderRight:"2px solid #DAA520", borderRadius:"0 4px 0 0"},

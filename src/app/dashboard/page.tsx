@@ -101,7 +101,7 @@ export default function StudentDashboard() {
       <div style={{ maxWidth:1100, margin:"0 auto", padding:"32px 24px", position:"relative", zIndex:2 }}>
 
         {/* HERO */}
-        <div className="au card-navy" style={{ padding:"28px 32px", marginBottom:24, position:"relative", overflow:"hidden", boxShadow:"0 16px 50px rgba(15,32,64,.4)" }}>
+        <div className="au card-navy" style={{ padding:"28px 32px", marginBottom:24, position:"relative", overflow:"auto", boxShadow:"0 16px 50px rgba(15,32,64,.4)" }}>
           <div style={{ position:"absolute", top:-40, right:-40, width:160, height:160, borderRadius:"50%", background:"rgba(255,255,255,.03)" }} />
           <div style={{ position:"absolute", bottom:-30, left:"40%", width:120, height:120, borderRadius:"50%", background:"radial-gradient(circle,rgba(212,175,55,.06),transparent 70%)" }} />
           <div style={{ position:"relative", zIndex:2, display:"flex", alignItems:"flex-start", justifyContent:"space-between" }}>
@@ -158,7 +158,7 @@ export default function StudentDashboard() {
             </div>
 
             {/* recent visits */}
-            <div className="au3" style={{ background:"rgba(255,255,255,.06)", border:"1px solid rgba(255,255,255,.1)", borderRadius:20, overflow:"hidden", backdropFilter:"blur(10px)" }}>
+            <div className="au3" style={{ background:"rgba(255,255,255,.06)", border:"1px solid rgba(255,255,255,.1)", borderRadius:20, overflow:"auto", backdropFilter:"blur(10px)" }}>
               <div style={{ padding:"18px 24px", borderBottom:"1px solid rgba(255,255,255,.08)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                 <h3 style={{ fontSize:18, fontWeight:800, color:"#fff" }}>Recent Visits</h3>
                 <button onClick={()=>setActiveTab("history")} style={{ fontSize:13, color:"rgba(255,255,255,.45)", background:"none", border:"none", cursor:"pointer", fontFamily:"'DM Sans',sans-serif" }}>View all →</button>
@@ -188,7 +188,7 @@ export default function StudentDashboard() {
 
         {/* HISTORY */}
         {activeTab === "history" && (
-          <div className="au2" style={{ background:"rgba(255,255,255,.06)", border:"1px solid rgba(255,255,255,.1)", borderRadius:20, overflow:"hidden", backdropFilter:"blur(10px)" }}>
+          <div className="au2" style={{ background:"rgba(255,255,255,.06)", border:"1px solid rgba(255,255,255,.1)", borderRadius:20, overflow:"auto", backdropFilter:"blur(10px)" }}>
             <div style={{ padding:"18px 24px", borderBottom:"1px solid rgba(255,255,255,.08)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <h3 style={{ fontSize:18, fontWeight:800, color:"#fff" }}>Complete Visit History</h3>
               <span style={{ background:"rgba(255,255,255,.08)", color:"rgba(255,255,255,.6)", fontSize:12, fontWeight:700, padding:"4px 12px", borderRadius:100 }}>{visits.length} visits</span>

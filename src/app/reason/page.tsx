@@ -106,7 +106,7 @@ export default function ReasonPage() {
 
       {/* ── BODY ── */}
       <div style={{
-        flex:1, overflow:"hidden",
+        flex:1, overflow:"auto",
         display:"flex", alignItems:"center", justifyContent:"center",
         padding:"16px 24px", position:"relative", zIndex:2,
       }}>
@@ -122,7 +122,7 @@ export default function ReasonPage() {
               border:"1px solid rgba(212,175,55,.18)",
               borderRadius:16, padding:"20px 18px",
               display:"flex", flexDirection:"column", justifyContent:"space-between",
-              position:"relative", overflow:"hidden",
+              position:"relative", overflow:"auto",
               boxShadow:"0 14px 40px rgba(15,32,64,.4)",
             }}>
               <div style={{ position:"absolute", top:-30, right:-30, width:110, height:110, borderRadius:"50%", background:"rgba(255,255,255,.03)" }} />

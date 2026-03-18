@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-## Getting Started
 
-First, run the development server:
+# 📚 **NEU LIBRARY LOG SYSTEM**
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+### *A Modern Digital Library Experience*
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🌐 **Live Application**
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Experience the platform in action:
+👉 **[https://neu-library-cpl7.vercel.app/](https://neu-library-cpl7.vercel.app/)**
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 🧩 **Overview**
 
-To learn more about Next.js, take a look at the following resources:
+This project demonstrates a modern frontend architecture leveraging contemporary frameworks and deployment pipelines. The interface is designed with responsiveness and accessibility in mind, ensuring a consistent experience across devices while maintaining fast load times and smooth navigation.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🔐 **Authentication Methods**
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Users can access the platform through multiple convenient authentication options:
 
-## Deploy on Vercel
+* **Google Account Login**
+* **QR Code Scanning**
+* **Manual Credential Sign-In**
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🧪 **Test Credentials**
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+For demonstration and testing purposes, you may use the following accounts:
+
+### 👤 **User Account 1**
+
+* **Email:** [jcesperanza@neu.edu.ph](mailto:jcesperanza@neu.edu.ph)
+* **Admin Password:** `admin123`
+* **Kiosk Password:** `password123`
+
+### 👤 **User Account 2**
+
+* **Email:** [ezekielkayl.peralta@neu.edu.ph](mailto:ezekielkayl.peralta@neu.edu.ph)
+* **Admin Password:** `admin123`
+* **Kiosk Password:** `password123`
+

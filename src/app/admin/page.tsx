@@ -258,7 +258,7 @@ export default function AdminPage() {
               <span style={{ fontSize:9, fontWeight:800, color:"#DAA520", letterSpacing:".1em" }}>ADMIN</span>
             </div>
           </div>
-          <button onClick={()=>{ document.cookie="user_email=; path=/; max-age=0"; document.cookie="active_role=; path=/; max-age=0"; router.push("/auth/kiosk"); }}
+          <button onClick={()=>{ document.cookie="user_email=; path=/; max-age=0"; document.cookie="active_role=; path=/; max-age=0"; router.push("/kiosk"); }}
             style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:7, padding:"8px", background:"rgba(248,113,113,.07)", border:"1px solid rgba(248,113,113,.15)", borderRadius:8, color:"#f87171", fontSize:12, fontWeight:700, fontFamily:"'DM Sans',sans-serif", cursor:"pointer", transition:"all .18s" }}
             onMouseEnter={e=>(e.currentTarget as HTMLButtonElement).style.background="rgba(248,113,113,.13)"}
             onMouseLeave={e=>(e.currentTarget as HTMLButtonElement).style.background="rgba(248,113,113,.07)"}>

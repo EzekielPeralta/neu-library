@@ -23,7 +23,7 @@ export default function ReasonPage() {
   useEffect(() => {
     const stored = sessionStorage.getItem("student");
     if (!stored) { 
-      router.push("/login"); 
+      router.push("/kiosk"); 
       return; 
     }
     const student = JSON.parse(stored);

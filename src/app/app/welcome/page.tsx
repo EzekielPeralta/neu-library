@@ -19,7 +19,7 @@ export default function WelcomePage() {
   useEffect(() => {
     const stored = sessionStorage.getItem("student");
     if (!stored) { 
-      router.push("/login"); 
+      router.push("/kiosk"); 
       return; 
     }
     const student = JSON.parse(stored);
@@ -169,7 +169,11 @@ export default function WelcomePage() {
           <p className="text-gray-900 font-black text-lg">You may now enter the library.</p>
           <p className="text-gray-500 text-sm mt-1 mb-6 font-medium">Have a productive and fulfilling visit!</p>
           <button
-            onClick={() => { sessionStorage.clear(); router.push("/login"); }}
+            onClick={()=>{
+  const isKiosk = sessionStorage.getItem("kiosk_mode");
+  sessionStorage.clear();
+  router.push(isKiosk ? "/kiosk" : "/dashboard");
+}}
             className="w-full border-2 border-red-800 text-red-800 hover:bg-red-800 hover:text-white font-bold py-4 rounded-xl transition-all duration-300 text-sm group active:scale-[0.98]"
           >
             <span className="flex items-center justify-center gap-2">

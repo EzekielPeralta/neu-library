@@ -180,7 +180,6 @@ export default function AdminPage() {
     if (s) setStudents(s as Student[]);
     setLoading(false);
   };
-
   const today      = new Date().toISOString().split("T")[0];
   const weekAgo    = new Date(Date.now()-7*86400000).toISOString().split("T")[0];
   const monthStart = new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString().split("T")[0];
@@ -376,7 +375,8 @@ function DashboardPage({ visits, loading, today, weekAgo, monthStart, yearStart,
     a.click();
   };
 
-  const inside = visits.filter(v=>v.visit_status==="inside");
+  const today2 = new Date().toISOString().split("T")[0];
+  const inside = visits.filter(v=>v.visit_status==="inside" && v.visit_date===today2);
 
   return (
     <div style={{ padding:"28px 32px", minHeight:"100vh" }}>
@@ -557,6 +557,8 @@ function VisitorLogsPage({ visits, loading }: { visits:Visit[]; loading:boolean 
   const [period,   setPeriod]   = useState("today");
   const [fReason,  setFReason]  = useState("");
   const [fCollege, setFCollege] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo,   setDateTo]   = useState("");
 
   const today      = new Date().toISOString().split("T")[0];
   const weekAgo    = new Date(Date.now()-7*86400000).toISOString().split("T")[0];
@@ -564,21 +566,35 @@ function VisitorLogsPage({ visits, loading }: { visits:Visit[]; loading:boolean 
   const yearStart  = new Date(new Date().getFullYear(),0,1).toISOString().split("T")[0];
 
   const filtered = visits.filter(v=>{
-    const q = search.toLowerCase();
-    const matchSearch = !search ||
-      v.students?.name?.toLowerCase().includes(q) ||
-      v.students?.email?.toLowerCase().includes(q) ||
-      v.student_id?.toLowerCase().includes(q) ||
-      v.students?.college?.toLowerCase().includes(q);
-    const matchPeriod =
-      period==="today" ? v.visit_date===today :
-      period==="week"  ? v.visit_date>=weekAgo :
-      period==="month" ? v.visit_date>=monthStart :
-      period==="year"  ? v.visit_date>=yearStart : true;
+    const q = search.toLowerCase().trim();
+    const matchSearch = !q ||
+      (v.students?.name||"").toLowerCase().includes(q) ||
+      (v.students?.email||"").toLowerCase().includes(q) ||
+      (v.student_id||"").toLowerCase().includes(q) ||
+      (v.students?.college||"").toLowerCase().includes(q);
+
+    let matchPeriod = true;
+    if(dateFrom || dateTo){
+      // custom date range takes priority
+      if(dateFrom) matchPeriod = matchPeriod && v.visit_date >= dateFrom;
+      if(dateTo)   matchPeriod = matchPeriod && v.visit_date <= dateTo;
+    } else {
+      matchPeriod =
+        period==="today" ? v.visit_date===today :
+        period==="week"  ? v.visit_date>=weekAgo :
+        period==="month" ? v.visit_date>=monthStart :
+        period==="year"  ? v.visit_date>=yearStart : true;
+    }
+
     const matchReason  = !fReason  || v.reason===fReason;
     const matchCollege = !fCollege || v.students?.college===fCollege;
     return matchSearch && matchPeriod && matchReason && matchCollege;
   });
+
+  const clearFilters = () => {
+    setSearch(""); setFReason(""); setFCollege("");
+    setDateFrom(""); setDateTo(""); setPeriod("today");
+  };
 
   const exportCSV = () => {
     const headers = ["Visit ID","Student ID","Name","Email","College","Reason","Date","Time In","Time Out","Duration"];
@@ -608,6 +624,14 @@ function VisitorLogsPage({ visits, loading }: { visits:Visit[]; loading:boolean 
     colorScheme:"dark",
   };
 
+  const dateInputStyle: React.CSSProperties = {
+    height:40, padding:"0 14px", background:"#0d1f3e",
+    border:"1px solid rgba(255,255,255,.15)", borderRadius:8,
+    color:"rgba(255,255,255,.8)", fontSize:13, fontWeight:600,
+    fontFamily:"'DM Sans',sans-serif", outline:"none", cursor:"pointer",
+    colorScheme:"dark",
+  };
+
   return (
     <div style={{ padding:"28px 32px", minHeight:"100vh" }}>
       <div style={{ marginBottom:24 }}>
@@ -615,38 +639,80 @@ function VisitorLogsPage({ visits, loading }: { visits:Visit[]; loading:boolean 
         <h1 style={{ fontSize:32, fontWeight:900, color:"#fff", fontFamily:"'Playfair Display',serif" }}>Visitor Logs</h1>
       </div>
 
-      {/* filters */}
+      {/* filters card */}
       <div style={{ background:"#0d1f3e", border:"1px solid rgba(255,255,255,.07)", borderRadius:12, padding:"18px 20px", marginBottom:18 }}>
+
+        {/* search */}
         <div style={{ position:"relative", marginBottom:14 }}>
-          <span style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", fontSize:15, color:"rgba(255,255,255,.3)" }}>⌕</span>
-          <input type="text" placeholder="Search by name, email, student number, or college…"
-            value={search} onChange={e=>setSearch(e.target.value)}
-            style={{ width:"100%", height:44, paddingLeft:42, paddingRight:18, background:"rgba(255,255,255,.05)", border:"1px solid rgba(255,255,255,.1)", borderRadius:9, color:"#fff", fontSize:14, fontFamily:"'DM Sans',sans-serif", outline:"none", transition:"border-color .2s" }}
+          <span style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", fontSize:15, color:"rgba(255,255,255,.3)", pointerEvents:"none" }}>⌕</span>
+          <input
+            type="text"
+            placeholder="Search by name, email, student number, or college…"
+            value={search}
+            onChange={e=>setSearch(e.target.value)}
+            style={{ width:"100%", height:44, paddingLeft:42, paddingRight:search?40:18, background:"rgba(255,255,255,.05)", border:"1px solid rgba(255,255,255,.1)", borderRadius:9, color:"#fff", fontSize:14, fontFamily:"'DM Sans',sans-serif", outline:"none", transition:"border-color .2s" }}
             onFocus={e=>e.target.style.borderColor="rgba(212,175,55,.45)"}
             onBlur={e=>e.target.style.borderColor="rgba(255,255,255,.1)"}
           />
+          {search && (
+            <button onClick={()=>setSearch("")}
+              style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:"rgba(255,255,255,.4)", fontSize:16, fontFamily:"'DM Sans',sans-serif", padding:4 }}>
+              ✕
+            </button>
+          )}
         </div>
+
+        {/* period pills */}
+        <div style={{ display:"flex", gap:5, marginBottom:12, flexWrap:"wrap" as const }}>
+          {[["today","Today"],["week","Week"],["month","Month"],["year","Year"],["all","All"]].map(([val,label])=>(
+            <button key={val} onClick={()=>{ setPeriod(val); setDateFrom(""); setDateTo(""); }}
+              style={{ height:34, padding:"0 14px", borderRadius:7, border:"1px solid", fontSize:12, fontWeight:700, fontFamily:"'DM Sans',sans-serif", cursor:"pointer", transition:"all .18s",
+                background: period===val&&!dateFrom&&!dateTo?"rgba(212,175,55,.12)":"transparent",
+                color:       period===val&&!dateFrom&&!dateTo?"#DAA520":"rgba(255,255,255,.4)",
+                borderColor: period===val&&!dateFrom&&!dateTo?"rgba(212,175,55,.4)":"rgba(255,255,255,.1)",
+              }}>{label}</button>
+          ))}
+        </div>
+
+        {/* filters row */}
         <div style={{ display:"flex", gap:10, flexWrap:"wrap" as const, alignItems:"center" }}>
-          <div style={{ display:"flex", gap:5 }}>
-            {[["today","Today"],["week","Week"],["month","Month"],["year","Year"],["all","All"]].map(([val,label])=>(
-              <button key={val} onClick={()=>setPeriod(val)}
-                style={{ height:36, padding:"0 14px", borderRadius:7, border:"1px solid", fontSize:12, fontWeight:700, fontFamily:"'DM Sans',sans-serif", cursor:"pointer", transition:"all .18s",
-                  background: period===val?"rgba(212,175,55,.12)":"transparent",
-                  color:       period===val?"#DAA520":"rgba(255,255,255,.4)",
-                  borderColor: period===val?"rgba(212,175,55,.4)":"rgba(255,255,255,.1)",
-                }}>{label}</button>
-            ))}
-          </div>
-          <select value={fReason}  onChange={e=>setFReason(e.target.value)}  style={selStyle}>
+          <select value={fReason} onChange={e=>setFReason(e.target.value)} style={selStyle}>
             <option value="">All Purposes</option>
             {REASONS.map(r=><option key={r} value={r}>{r}</option>)}
           </select>
+
           <select value={fCollege} onChange={e=>setFCollege(e.target.value)} style={selStyle}>
             <option value="">All Colleges</option>
             {COLLEGES.map(c=><option key={c} value={c}>{c.replace("College of ","")}</option>)}
           </select>
+
+          {/* date range */}
+          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+            <div>
+              <p style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,.3)", letterSpacing:".1em", textTransform:"uppercase", marginBottom:3 }}>From</p>
+              <input type="date" value={dateFrom} onChange={e=>{ setDateFrom(e.target.value); setPeriod(""); }}
+                style={dateInputStyle} />
+            </div>
+            <div style={{ marginTop:16, color:"rgba(255,255,255,.3)", fontSize:14 }}>→</div>
+            <div>
+              <p style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,.3)", letterSpacing:".1em", textTransform:"uppercase", marginBottom:3 }}>To</p>
+              <input type="date" value={dateTo} onChange={e=>{ setDateTo(e.target.value); setPeriod(""); }}
+                style={dateInputStyle} />
+            </div>
+          </div>
+
+          {/* clear */}
+          {(search||fReason||fCollege||dateFrom||dateTo||period!=="today") && (
+            <button onClick={clearFilters}
+              style={{ height:40, padding:"0 14px", background:"rgba(255,255,255,.05)", border:"1px solid rgba(255,255,255,.1)", borderRadius:8, color:"rgba(255,255,255,.5)", fontSize:12, fontWeight:700, fontFamily:"'DM Sans',sans-serif", cursor:"pointer" }}>
+              Clear ✕
+            </button>
+          )}
+
           <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:10 }}>
-            <span style={{ fontSize:12, color:"rgba(255,255,255,.35)", fontWeight:600 }}>{filtered.length} of {visits.length} records</span>
+            <span style={{ fontSize:12, color:"rgba(255,255,255,.35)", fontWeight:600 }}>
+              {filtered.length} of {visits.length} records
+            </span>
             <button onClick={exportCSV}
               style={{ height:36, padding:"0 16px", background:"transparent", border:"1px solid rgba(212,175,55,.35)", borderRadius:8, color:"#DAA520", fontSize:12, fontWeight:700, fontFamily:"'DM Sans',sans-serif", cursor:"pointer", transition:"all .18s" }}
               onMouseEnter={e=>(e.currentTarget as HTMLButtonElement).style.background="rgba(212,175,55,.08)"}
@@ -656,6 +722,19 @@ function VisitorLogsPage({ visits, loading }: { visits:Visit[]; loading:boolean 
           </div>
         </div>
       </div>
+
+      {/* results count banner */}
+      {search && (
+        <div style={{ background:"rgba(212,175,55,.08)", border:"1px solid rgba(212,175,55,.2)", borderRadius:9, padding:"10px 16px", marginBottom:14, display:"flex", alignItems:"center", gap:8 }}>
+          <span style={{ fontSize:14 }}>🔍</span>
+          <p style={{ fontSize:13, color:"#DAA520", fontWeight:600 }}>
+            {filtered.length === 0
+              ? `No results found for "${search}"`
+              : `${filtered.length} result${filtered.length!==1?"s":""} for "${search}"`
+            }
+          </p>
+        </div>
+      )}
 
       {/* table */}
       <div style={{ background:"#0d1f3e", border:"1px solid rgba(255,255,255,.07)", borderRadius:12, overflow:"hidden" }}>
@@ -673,7 +752,18 @@ function VisitorLogsPage({ visits, loading }: { visits:Visit[]; loading:boolean 
               </thead>
               <tbody>
                 {filtered.length===0 ? (
-                  <tr><td colSpan={7} style={{ textAlign:"center", padding:"60px 20px", color:"rgba(255,255,255,.28)", fontSize:14 }}>No records match your filters</td></tr>
+                  <tr>
+                    <td colSpan={7} style={{ textAlign:"center", padding:"60px 20px" }}>
+                      <p style={{ fontSize:28, marginBottom:10 }}>🔍</p>
+                      <p style={{ color:"rgba(255,255,255,.35)", fontSize:14, fontWeight:600 }}>
+                        {search ? `No records found for "${search}"` : "No records match your filters"}
+                      </p>
+                      <button onClick={clearFilters}
+                        style={{ marginTop:14, padding:"8px 20px", background:"rgba(212,175,55,.1)", border:"1px solid rgba(212,175,55,.3)", borderRadius:8, color:"#DAA520", fontSize:13, fontWeight:700, fontFamily:"'DM Sans',sans-serif", cursor:"pointer" }}>
+                        Clear filters
+                      </button>
+                    </td>
+                  </tr>
                 ) : filtered.map(v=>{
                   const rc = v.reason&&REASON_COLORS[v.reason]?REASON_COLORS[v.reason]:{color:"rgba(255,255,255,.45)",bg:"rgba(255,255,255,.05)"};
                   return (
@@ -702,8 +792,8 @@ function VisitorLogsPage({ visits, loading }: { visits:Visit[]; loading:boolean 
                           ? <span style={{ background:"rgba(248,113,113,.08)", color:"#f87171", padding:"4px 10px", borderRadius:5, fontSize:12, fontWeight:700 }}>
                               {v.time_out?.slice(0,5)}
                             </span>
-                          : <span style={{ color:"rgba(255,255,255,.2)", fontSize:12, fontStyle:"italic" }}>
-                              {v.visit_status==="inside" ? "Inside" : "—"}
+                          : <span style={{ color: v.visit_status==="inside"?"#FCD34D":"rgba(255,255,255,.2)", fontSize:12, fontStyle: v.visit_status==="inside"?"normal":"italic", fontWeight: v.visit_status==="inside"?700:400 }}>
+                              {v.visit_status==="inside" ? "● Inside" : "—"}
                             </span>
                         }
                       </td>

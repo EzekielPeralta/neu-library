@@ -91,14 +91,16 @@ export default function KioskPage() {
       setShowAdminChoice(true);
       return;
     }
+    // Regular student
     const { data: student } = await supabase
       .from("students").select("*").eq("email", email).single();
+
     if (!student) {
-      setStatus("error");
-      setMessage("Account not registered in the library system");
-      await supabase.auth.signOut();
+      // Not registered — send to registration page
+      router.push("/register");
       return;
     }
+
     await processCheckIn(student);
   };
 
@@ -136,6 +138,22 @@ export default function KioskPage() {
       return;
     }
 
+    // Check if student is blocked
+    const { data: studentCheck } = await supabase
+      .from("students").select("is_blocked").eq("student_id", student.student_id).single();
+
+    if (studentCheck?.is_blocked) {
+      setStatus("error");
+      setMessage("Your access has been restricted. Please contact the library admin.");
+      setTimeout(() => {
+        setStatus("idle");
+        setMessage("Scan QR or sign in with Google");
+        qrStarted.current = false;
+        startQR();
+      }, 5000);
+      return;
+    }
+    
     const today   = new Date().toISOString().split("T")[0];
     const nowTime = new Date().toTimeString().split(" ")[0];
 

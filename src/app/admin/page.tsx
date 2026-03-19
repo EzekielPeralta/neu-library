@@ -12,6 +12,7 @@ interface Visit {
 interface Student {
   student_id: string; name: string; email: string;
   college: string; employee_status: string;
+  is_blocked: boolean;
 }
 interface LibraryStatus {
   is_open: boolean;
@@ -682,18 +683,34 @@ function VisitorLogsPage({ visits, loading }: { visits:Visit[]; loading:boolean 
    USER MANAGEMENT
 ══════════════════════════════════════ */
 function UserManagementPage({ students, loading }: { students:Student[]; loading:boolean }) {
-  const [search,   setSearch]   = useState("");
-  const [fCollege, setFCollege] = useState("");
-  const [fStatus,  setFStatus]  = useState("");
-  const [sortBy,   setSortBy]   = useState("name");
-  const [sortDir,  setSortDir]  = useState<"asc"|"desc">("asc");
+  const [search,    setSearch]    = useState("");
+  const [fCollege,  setFCollege]  = useState("");
+  const [fStatus,   setFStatus]   = useState("");
+  const [sortBy,    setSortBy]    = useState("name");
+  const [sortDir,   setSortDir]   = useState<"asc"|"desc">("asc");
+  const [blocking,  setBlocking]  = useState<string|null>(null);
+  const [localStudents, setLocalStudents] = useState<Student[]>([]);
+
+  useEffect(()=>{ setLocalStudents(students); },[students]);
 
   const toggleSort = (col: string) => {
     if(sortBy===col) setSortDir(d=>d==="asc"?"desc":"asc");
     else { setSortBy(col); setSortDir("asc"); }
   };
 
-  const filtered = students
+  const handleBlock = async (student: Student) => {
+    setBlocking(student.student_id);
+    const newVal = !student.is_blocked;
+    await supabase.from("students")
+      .update({ is_blocked: newVal })
+      .eq("student_id", student.student_id);
+    setLocalStudents(prev =>
+      prev.map(s => s.student_id === student.student_id ? {...s, is_blocked: newVal} : s)
+    );
+    setBlocking(null);
+  };
+
+  const filtered = localStudents
     .filter(s=>{
       const q = search.toLowerCase();
       const matchSearch = !search ||
@@ -724,13 +741,30 @@ function UserManagementPage({ students, loading }: { students:Student[]; loading
     colorScheme:"dark",
   };
 
+  const blockedCount = localStudents.filter(s=>s.is_blocked).length;
+
   return (
     <div style={{ padding:"28px 32px", minHeight:"100vh" }}>
-      <div style={{ marginBottom:24 }}>
-        <p style={{ fontSize:11, fontWeight:700, letterSpacing:".28em", textTransform:"uppercase", color:"rgba(212,175,55,.6)", marginBottom:6 }}>Registry</p>
-        <h1 style={{ fontSize:32, fontWeight:900, color:"#fff", fontFamily:"'Playfair Display',serif" }}>User Management</h1>
+      <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:24 }}>
+        <div>
+          <p style={{ fontSize:11, fontWeight:700, letterSpacing:".28em", textTransform:"uppercase", color:"rgba(212,175,55,.6)", marginBottom:6 }}>Registry</p>
+          <h1 style={{ fontSize:32, fontWeight:900, color:"#fff", fontFamily:"'Playfair Display',serif" }}>User Management</h1>
+        </div>
+        <div style={{ display:"flex", gap:12, alignItems:"center" }}>
+          <div style={{ background:"#0d1f3e", border:"1px solid rgba(255,255,255,.07)", borderRadius:10, padding:"10px 16px", textAlign:"center" }}>
+            <p style={{ fontSize:22, fontWeight:900, color:"#fff", fontFamily:"'Playfair Display',serif", lineHeight:1 }}>{localStudents.length}</p>
+            <p style={{ fontSize:11, color:"rgba(255,255,255,.4)", marginTop:2 }}>Total Users</p>
+          </div>
+          {blockedCount > 0 && (
+            <div style={{ background:"rgba(248,113,113,.08)", border:"1px solid rgba(248,113,113,.2)", borderRadius:10, padding:"10px 16px", textAlign:"center" }}>
+              <p style={{ fontSize:22, fontWeight:900, color:"#f87171", fontFamily:"'Playfair Display',serif", lineHeight:1 }}>{blockedCount}</p>
+              <p style={{ fontSize:11, color:"rgba(248,113,113,.6)", marginTop:2 }}>Blocked</p>
+            </div>
+          )}
+        </div>
       </div>
 
+      {/* filters */}
       <div style={{ background:"#0d1f3e", border:"1px solid rgba(255,255,255,.07)", borderRadius:12, padding:"18px 20px", marginBottom:18 }}>
         <div style={{ position:"relative", marginBottom:14 }}>
           <span style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", fontSize:15, color:"rgba(255,255,255,.3)" }}>⌕</span>
@@ -741,7 +775,7 @@ function UserManagementPage({ students, loading }: { students:Student[]; loading
             onBlur={e=>e.target.style.borderColor="rgba(255,255,255,.1)"}
           />
         </div>
-        <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+        <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" as const }}>
           <select value={fCollege} onChange={e=>setFCollege(e.target.value)} style={selStyle}>
             <option value="">All Colleges</option>
             {COLLEGES.map(c=><option key={c} value={c}>{c.replace("College of ","")}</option>)}
@@ -764,6 +798,7 @@ function UserManagementPage({ students, loading }: { students:Student[]; loading
         </div>
       </div>
 
+      {/* table */}
       <div style={{ background:"#0d1f3e", border:"1px solid rgba(255,255,255,.07)", borderRadius:12, overflow:"hidden" }}>
         {loading ? (
           <div style={{ textAlign:"center", padding:"60px 20px", color:"rgba(255,255,255,.35)" }}>Loading users…</div>
@@ -777,18 +812,27 @@ function UserManagementPage({ students, loading }: { students:Student[]; loading
                   <th style={{ padding:"13px 20px", textAlign:"left" }}><SortBtn col="college" label="College" /></th>
                   <th style={{ padding:"13px 20px", textAlign:"left" }}><SortBtn col="employee_status" label="Type" /></th>
                   <th style={{ padding:"13px 20px", textAlign:"left", fontSize:10, fontWeight:700, textTransform:"uppercase" as const, letterSpacing:".16em", color:"rgba(255,255,255,.28)" }}>Status</th>
+                  <th style={{ padding:"13px 20px", textAlign:"center", fontSize:10, fontWeight:700, textTransform:"uppercase" as const, letterSpacing:".16em", color:"rgba(255,255,255,.28)" }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length===0 ? (
-                  <tr><td colSpan={5} style={{ textAlign:"center", padding:"60px 20px", color:"rgba(255,255,255,.28)", fontSize:14 }}>No users match your filters</td></tr>
+                  <tr><td colSpan={6} style={{ textAlign:"center", padding:"60px 20px", color:"rgba(255,255,255,.28)", fontSize:14 }}>No users match your filters</td></tr>
                 ) : filtered.map(s=>{
                   const sc = STATUS_COLORS[s.employee_status]||STATUS_COLORS["Student"];
+                  const isBlocked = s.is_blocked;
                   return (
-                    <tr key={s.student_id} className="trow" style={{ borderBottom:"1px solid rgba(255,255,255,.04)" }}>
+                    <tr key={s.student_id} className="trow" style={{ borderBottom:"1px solid rgba(255,255,255,.04)", opacity: isBlocked ? .7 : 1, transition:"opacity .2s" }}>
                       <td style={{ padding:"13px 20px" }}>
-                        <p style={{ fontWeight:700, color:"#fff", fontSize:14 }}>{s.name}</p>
-                        <p style={{ fontSize:11, color:"rgba(255,255,255,.35)", marginTop:2 }}>{s.email}</p>
+                        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                          <div style={{ width:32, height:32, borderRadius:"50%", background: isBlocked ? "rgba(248,113,113,.2)" : "linear-gradient(135deg,#0f2040,#1E3A8A)", display:"flex", alignItems:"center", justifyContent:"center", color: isBlocked?"#f87171":"#fff", fontWeight:800, fontSize:12, flexShrink:0 }}>
+                            {s.name?.charAt(0)||"?"}
+                          </div>
+                          <div>
+                            <p style={{ fontWeight:700, color: isBlocked?"rgba(255,255,255,.5)":"#fff", fontSize:14, textDecoration: isBlocked?"line-through":"none" }}>{s.name}</p>
+                            <p style={{ fontSize:11, color:"rgba(255,255,255,.35)", marginTop:2 }}>{s.email}</p>
+                          </div>
+                        </div>
                       </td>
                       <td style={{ padding:"13px 20px", color:"rgba(255,255,255,.5)", fontSize:12, fontWeight:600, fontFamily:"'Courier New',monospace" }}>{s.student_id}</td>
                       <td style={{ padding:"13px 20px", color:"rgba(255,255,255,.5)", fontSize:12 }}>
@@ -798,10 +842,36 @@ function UserManagementPage({ students, loading }: { students:Student[]; loading
                         <span style={{ background:sc.bg, color:sc.color, padding:"4px 10px", borderRadius:5, fontSize:11, fontWeight:700 }}>{s.employee_status}</span>
                       </td>
                       <td style={{ padding:"13px 20px" }}>
-                        <span style={{ display:"inline-flex", alignItems:"center", gap:5, background:"rgba(74,222,128,.08)", color:"#4ade80", padding:"4px 10px", borderRadius:5, fontSize:11, fontWeight:700 }}>
-                          <span style={{ width:5, height:5, borderRadius:"50%", background:"#4ade80", display:"inline-block" }} />
-                          Active
-                        </span>
+                        {isBlocked ? (
+                          <span style={{ display:"inline-flex", alignItems:"center", gap:5, background:"rgba(248,113,113,.1)", color:"#f87171", padding:"4px 10px", borderRadius:5, fontSize:11, fontWeight:700 }}>
+                            <span style={{ width:5, height:5, borderRadius:"50%", background:"#f87171", display:"inline-block" }} />
+                            Blocked
+                          </span>
+                        ) : (
+                          <span style={{ display:"inline-flex", alignItems:"center", gap:5, background:"rgba(74,222,128,.08)", color:"#4ade80", padding:"4px 10px", borderRadius:5, fontSize:11, fontWeight:700 }}>
+                            <span style={{ width:5, height:5, borderRadius:"50%", background:"#4ade80", display:"inline-block" }} />
+                            Active
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding:"13px 20px", textAlign:"center" }}>
+                        <button
+                          onClick={()=>handleBlock(s)}
+                          disabled={blocking===s.student_id}
+                          style={{
+                            padding:"6px 16px", borderRadius:7, border:"1px solid",
+                            fontSize:12, fontWeight:700, fontFamily:"'DM Sans',sans-serif",
+                            cursor: blocking===s.student_id ? "not-allowed" : "pointer",
+                            opacity: blocking===s.student_id ? .5 : 1,
+                            transition:"all .18s",
+                            background: isBlocked ? "rgba(74,222,128,.08)" : "rgba(248,113,113,.08)",
+                            borderColor: isBlocked ? "rgba(74,222,128,.3)" : "rgba(248,113,113,.3)",
+                            color: isBlocked ? "#4ade80" : "#f87171",
+                          }}
+                          onMouseEnter={e=>{(e.currentTarget as HTMLButtonElement).style.opacity=".75";}}
+                          onMouseLeave={e=>{(e.currentTarget as HTMLButtonElement).style.opacity="1";}}>
+                          {blocking===s.student_id ? "…" : isBlocked ? "Unblock" : "Block"}
+                        </button>
                       </td>
                     </tr>
                   );

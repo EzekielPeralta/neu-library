@@ -278,6 +278,58 @@ export default function AdminPage() {
   );
 }
 
+function InsideCard({ visit, onTerminate }: { visit:Visit; onTerminate:()=>void }) {
+  const [terminating, setTerminating] = useState(false);
+  const [confirm,     setConfirm]     = useState(false);
+
+  const handleTerminate = async () => {
+    setTerminating(true);
+    await onTerminate();
+    setTerminating(false);
+    setConfirm(false);
+  };
+
+  return (
+    <div style={{ background:"rgba(255,255,255,.05)", border:"1px solid rgba(255,255,255,.08)", borderRadius:12, padding:"12px 14px", display:"flex", alignItems:"center", gap:12, minWidth:220 }}>
+      <div style={{ width:32, height:32, borderRadius:"50%", background:"linear-gradient(135deg,#0f2040,#1E3A8A)", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:800, fontSize:12, flexShrink:0 }}>
+        {visit.students?.name?.charAt(0)||"?"}
+      </div>
+      <div style={{ flex:1, minWidth:0 }}>
+        <p style={{ fontSize:13, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+          {visit.students?.name||"—"}
+        </p>
+        <p style={{ fontSize:11, color:"rgba(255,255,255,.35)", marginTop:1 }}>
+          In at {visit.visit_time?.slice(0,5)}
+        </p>
+      </div>
+
+      {/* confirm state */}
+      {confirm ? (
+        <div style={{ display:"flex", gap:5, flexShrink:0 }}>
+          <button
+            onClick={handleTerminate}
+            disabled={terminating}
+            style={{ padding:"5px 10px", background:"rgba(248,113,113,.15)", border:"1px solid rgba(248,113,113,.4)", borderRadius:7, color:"#f87171", fontSize:11, fontWeight:700, fontFamily:"'DM Sans',sans-serif", cursor:terminating?"not-allowed":"pointer", opacity:terminating?.6:1 }}>
+            {terminating ? "…" : "Yes"}
+          </button>
+          <button
+            onClick={()=>setConfirm(false)}
+            style={{ padding:"5px 10px", background:"rgba(255,255,255,.06)", border:"1px solid rgba(255,255,255,.15)", borderRadius:7, color:"rgba(255,255,255,.6)", fontSize:11, fontWeight:700, fontFamily:"'DM Sans',sans-serif", cursor:"pointer" }}>
+            No
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={()=>setConfirm(true)}
+          style={{ padding:"5px 12px", background:"rgba(248,113,113,.08)", border:"1px solid rgba(248,113,113,.2)", borderRadius:7, color:"#f87171", fontSize:11, fontWeight:700, fontFamily:"'DM Sans',sans-serif", cursor:"pointer", flexShrink:0, transition:"all .18s", whiteSpace:"nowrap" }}
+          onMouseEnter={e=>(e.currentTarget as HTMLButtonElement).style.background="rgba(248,113,113,.18)"}
+          onMouseLeave={e=>(e.currentTarget as HTMLButtonElement).style.background="rgba(248,113,113,.08)"}>
+          End Session
+        </button>
+      )}
+    </div>
+  );
+}
 /* ══════════════════════════════════════
    DASHBOARD PAGE
 ══════════════════════════════════════ */
@@ -395,15 +447,13 @@ function DashboardPage({ visits, loading, today, weekAgo, monthStart, yearStart,
           </div>
           <div style={{ display:"flex", flexWrap:"wrap" as const, gap:8 }}>
             {inside.map(v=>(
-              <div key={v.visit_id} style={{ background:"rgba(255,255,255,.05)", border:"1px solid rgba(255,255,255,.08)", borderRadius:8, padding:"8px 13px", display:"flex", alignItems:"center", gap:10 }}>
-                <div style={{ width:28, height:28, borderRadius:"50%", background:"linear-gradient(135deg,#0f2040,#1E3A8A)", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:800, fontSize:11, flexShrink:0 }}>
-                  {v.students?.name?.charAt(0)||"?"}
-                </div>
-                <div>
-                  <p style={{ fontSize:13, fontWeight:700, color:"#fff" }}>{v.students?.name||"—"}</p>
-                  <p style={{ fontSize:11, color:"rgba(255,255,255,.35)" }}>In at {v.visit_time?.slice(0,5)}</p>
-                </div>
-              </div>
+              <InsideCard key={v.visit_id} visit={v} onTerminate={async()=>{
+                const nowTime = new Date().toTimeString().split(" ")[0];
+                await supabase.from("library_visits")
+                  .update({ time_out: nowTime, visit_status:"completed" })
+                  .eq("visit_id", v.visit_id);
+                window.location.reload();
+              }} />
             ))}
           </div>
         </div>

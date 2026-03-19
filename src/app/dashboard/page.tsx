@@ -69,13 +69,17 @@ export default function StudentDashboard() {
   const topReason = Object.entries(reasonCounts).sort((a,b)=>b[1]-a[1])[0];
 
   return (
-    <div style={{ minHeight:"100vh", fontFamily:"'DM Sans',sans-serif", position:"relative" }} className="kiosk-bg">
+    <div
+      style={{ minHeight:"100vh", fontFamily:"'DM Sans',sans-serif", position:"relative" }}
+      className="kiosk-bg dashboard-root">
 
       <div style={{ position:"fixed", inset:0, backgroundImage:"radial-gradient(circle at 2px 2px,rgba(255,255,255,.02) 1px,transparent 0)", backgroundSize:"30px 30px", pointerEvents:"none", zIndex:0 }} />
       <div style={{ position:"fixed", top:0, left:0, right:0, height:2, background:"linear-gradient(90deg,transparent,rgba(212,175,55,.7),transparent)", pointerEvents:"none", zIndex:1 }} />
 
       {/* NAVBAR */}
-      <nav style={{ background:"rgba(6,13,26,.85)", backdropFilter:"blur(20px)", borderBottom:"1px solid rgba(212,175,55,.12)", padding:"0 32px", height:64, display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100 }}>
+      <nav
+        className="dashboard-nav"
+        style={{ background:"rgba(6,13,26,.85)", backdropFilter:"blur(20px)", borderBottom:"1px solid rgba(212,175,55,.12)", padding:"0 32px", height:64, display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100 }}>
         <div style={{ display:"flex", alignItems:"center", gap:14 }}>
           <div style={{ width:38, height:38, borderRadius:10, background:"rgba(255,255,255,.07)", border:"1px solid rgba(212,175,55,.2)", padding:5 }}>
             <Image src="/neu-library-logo.png" alt="NEU" width={38} height={38} style={{ width:"100%", height:"100%", objectFit:"contain" }} />
@@ -101,7 +105,7 @@ export default function StudentDashboard() {
       <div style={{ maxWidth:1100, margin:"0 auto", padding:"32px 24px", position:"relative", zIndex:2 }}>
 
         {/* HERO */}
-        <div className="au card-navy" style={{ padding:"28px 32px", marginBottom:24, position:"relative", overflow:"auto", boxShadow:"0 16px 50px rgba(15,32,64,.4)" }}>
+        <div className="au card-navy dashboard-hero" style={{ padding:"28px 32px", marginBottom:24, position:"relative", overflow:"auto", boxShadow:"0 16px 50px rgba(15,32,64,.4)" }}>
           <div style={{ position:"absolute", top:-40, right:-40, width:160, height:160, borderRadius:"50%", background:"rgba(255,255,255,.03)" }} />
           <div style={{ position:"absolute", bottom:-30, left:"40%", width:120, height:120, borderRadius:"50%", background:"radial-gradient(circle,rgba(212,175,55,.06),transparent 70%)" }} />
           <div style={{ position:"relative", zIndex:2, display:"flex", alignItems:"flex-start", justifyContent:"space-between" }}>
@@ -119,7 +123,7 @@ export default function StudentDashboard() {
         </div>
 
         {/* TABS */}
-        <div style={{ display:"flex", gap:6, marginBottom:24 }} className="au1">
+        <div style={{ display:"flex", gap:6, marginBottom:24 }} className="au1 dashboard-tabs">
           {[["overview","📊 Overview"],["history","📋 Visit History"]].map(([val,label])=>(
             <button key={val} onClick={()=>setActiveTab(val as "overview"|"history")} style={{
               padding:"11px 22px", borderRadius:12, border:"1px solid", fontSize:14, fontWeight:700,
@@ -141,7 +145,7 @@ export default function StudentDashboard() {
         {activeTab === "overview" && (
           <div>
             {/* stats */}
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))", gap:16, marginBottom:24 }} className="au2">
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))", gap:16, marginBottom:24 }} className="au2 dashboard-stats">
               {[
                 { emoji:"🏆", val:stats.total,    label:"Total Visits",  sub:"All time",   color:"#93C5FD", bg:"rgba(147,197,253,.08)", border:"rgba(147,197,253,.2)"  },
                 { emoji:"📅", val:stats.thisWeek,  label:"This Week",    sub:"Last 7 days", color:"#FCD34D", bg:"rgba(252,211,77,.08)",  border:"rgba(252,211,77,.2)"   },

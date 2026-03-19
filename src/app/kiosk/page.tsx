@@ -432,7 +432,9 @@ setResultFlow("timeout");
 
   // ══ MAIN KIOSK SCREEN ══
   return (
-    <div style={{ height:"100vh", overflow:"auto", fontFamily:"'DM Sans',sans-serif", background:"linear-gradient(145deg,#060d1a 0%,#0d1f3e 40%,#162d55 70%,#0a1628 100%)", display:"flex", position:"relative" }}>
+    <div
+      className="kiosk-layout"
+      style={{ height:"100vh", overflow:"auto", fontFamily:"'DM Sans',sans-serif", background:"linear-gradient(145deg,#060d1a 0%,#0d1f3e 40%,#162d55 70%,#0a1628 100%)", display:"flex", position:"relative" }}>
 
       <div style={{ position:"fixed", inset:0, backgroundImage:"radial-gradient(circle at 2px 2px,rgba(255,255,255,.025) 1px,transparent 0)", backgroundSize:"28px 28px", pointerEvents:"none", zIndex:0 }} />
       <div style={{ position:"fixed", top:"-15%", left:"-10%", width:520, height:520, borderRadius:"50%", background:"radial-gradient(circle,rgba(30,64,175,.2),transparent 68%)", filter:"blur(70px)", pointerEvents:"none", zIndex:0 }} />
@@ -441,7 +443,9 @@ setResultFlow("timeout");
       <div style={{ position:"fixed", bottom:0, left:0, right:0, height:1, background:"linear-gradient(90deg,transparent,rgba(212,175,55,.3),transparent)", pointerEvents:"none", zIndex:1 }} />
 
       {/* ══ LEFT PANEL ══ */}
-      <div style={{ width:"46%", position:"relative", zIndex:2, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"40px 52px", borderRight:"1px solid rgba(212,175,55,.08)" }}>
+      <div
+        className="kiosk-left"
+        style={{ width:"46%", position:"relative", zIndex:2, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"40px 52px", borderRight:"1px solid rgba(212,175,55,.08)" }}>
         <div style={{ position:"relative", marginBottom:22, display:"inline-block" }}>
           <div style={{ position:"absolute", inset:-20, borderRadius:"50%", background:"radial-gradient(circle,rgba(212,175,55,.18),transparent 68%)", filter:"blur(18px)" }} />
           <div style={{ width:140, height:140, borderRadius:"50%", background:"rgba(255,255,255,.06)", border:"2px solid rgba(212,175,55,.3)", padding:14, position:"relative", boxShadow:"0 0 50px rgba(212,175,55,.12), 0 24px 50px rgba(0,0,0,.5)" }}>
@@ -489,7 +493,9 @@ setResultFlow("timeout");
       </div>
 
       {/* ══ RIGHT PANEL ══ */}
-      <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:"28px 44px", position:"relative", zIndex:2 }}>
+      <div
+        className="kiosk-right"
+        style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:"28px 44px", position:"relative", zIndex:2 }}>
         <div style={{ width:"100%", maxWidth:420 }}>
           <div style={{ background:"rgba(255,255,255,.09)", backdropFilter:"blur(28px)", WebkitBackdropFilter:"blur(28px)", border:"1px solid rgba(255,255,255,.15)", borderRadius:26, padding:"28px 28px", boxShadow:"0 10px 50px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.12)" }}>
 

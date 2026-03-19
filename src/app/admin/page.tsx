@@ -366,9 +366,41 @@ function DashboardPage({ visits, loading, today, weekAgo, monthStart, yearStart,
   const COLORS = ["#DAA520","#93C5FD","#6EE7B7","#C4B5FD","#F9A8D4","#FCD34D"];
 
   const exportCSV = () => {
-    const headers = ["Visit ID","Student ID","Name","Email","College","Reason","Date","Time In","Time Out"];
-    const rows = visits.map(v=>[v.visit_id,v.student_id,v.students?.name||"",v.students?.email||"",v.students?.college||"",v.reason||"",v.visit_date,v.visit_time,v.time_out||""]);
+    const exportedAt = new Date().toISOString();
+    const headers = ["Exported At","Visit ID","Student ID","Name","Email","College","Reason","Visit Date","Time In","Time Out"];
+    const rows = visits.map(v=>[
+      exportedAt,
+      v.visit_id,
+      v.student_id,
+      v.students?.name||"",
+      v.students?.email||"",
+      v.students?.college||"",
+      v.reason||"",
+      v.visit_date,
+      v.visit_time,
+      v.time_out||"",
+    ]);
     const csv = [headers,...rows].map(r=>r.map(c=>`"${c}"`).join(",")).join("\n");
+
+    // #region agent log
+    fetch("http://127.0.0.1:7435/ingest/df65c7ba-ed5a-4d19-aae4-78da16b82e11",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "X-Debug-Session-Id":"7437b5",
+      },
+      body:JSON.stringify({
+        sessionId:"7437b5",
+        runId:"pre-fix",
+        hypothesisId:"CSV_VISITS",
+        location:"src/app/admin/page.tsx:DashboardPage-exportCSV",
+        message:"Visits CSV exported from dashboard",
+        data:{ rowCount: rows.length },
+        timestamp:Date.now(),
+      }),
+    }).catch(()=>{});
+    // #endregion agent log
+
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
     a.download = `NEU-Library-Visits-${today}.csv`;
@@ -597,7 +629,8 @@ function VisitorLogsPage({ visits, loading }: { visits:Visit[]; loading:boolean 
   };
 
   const exportCSV = () => {
-    const headers = ["Visit ID","Student ID","Name","Email","College","Reason","Date","Time In","Time Out","Duration"];
+    const exportedAt = new Date().toISOString();
+    const headers = ["Exported At","Visit ID","Student ID","Name","Email","College","Reason","Visit Date","Time In","Time Out","Duration"];
     const rows = filtered.map(v=>{
       const tout = v.time_out;
       let dur = "";
@@ -607,9 +640,29 @@ function VisitorLogsPage({ visits, loading }: { visits:Visit[]; loading:boolean 
         const diff=(h2*60+m2)-(h1*60+m1);
         dur=`${Math.floor(diff/60)}h ${diff%60}m`;
       }
-      return [v.visit_id,v.student_id,v.students?.name||"",v.students?.email||"",v.students?.college||"",v.reason||"",v.visit_date,v.visit_time,tout||"",dur];
+      return [exportedAt,v.visit_id,v.student_id,v.students?.name||"",v.students?.email||"",v.students?.college||"",v.reason||"",v.visit_date,v.visit_time,tout||"",dur];
     });
     const csv=[headers,...rows].map(r=>r.map(c=>`"${c}"`).join(",")).join("\n");
+
+    // #region agent log
+    fetch("http://127.0.0.1:7435/ingest/df65c7ba-ed5a-4d19-aae4-78da16b82e11",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "X-Debug-Session-Id":"7437b5",
+      },
+      body:JSON.stringify({
+        sessionId:"7437b5",
+        runId:"pre-fix",
+        hypothesisId:"CSV_LOGS",
+        location:"src/app/admin/page.tsx:VisitorLogsPage-exportCSV",
+        message:"Visitor logs CSV exported",
+        data:{ rowCount: rows.length },
+        timestamp:Date.now(),
+      }),
+    }).catch(()=>{});
+    // #endregion agent log
+
     const a=document.createElement("a");
     a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
     a.download=`NEU-Library-Visits-${today}.csv`;
@@ -883,6 +936,45 @@ function UserManagementPage({ students, loading }: { students:Student[]; loading
 
   const blockedCount = localStudents.filter(s=>s.is_blocked).length;
 
+  const exportUsersCSV = () => {
+    const exportedAt = new Date().toISOString();
+    const headers = ["Exported At","Student ID","Name","Email","College","Type","Blocked"];
+    const rows = filtered.map(s=>[
+      exportedAt,
+      s.student_id,
+      s.name,
+      s.email,
+      s.college,
+      s.employee_status,
+      s.is_blocked ? "Yes" : "No",
+    ]);
+    const csv=[headers,...rows].map(r=>r.map(c=>`"${c}"`).join(",")).join("\n");
+
+    // #region agent log
+    fetch("http://127.0.0.1:7435/ingest/df65c7ba-ed5a-4d19-aae4-78da16b82e11",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "X-Debug-Session-Id":"7437b5",
+      },
+      body:JSON.stringify({
+        sessionId:"7437b5",
+        runId:"pre-fix",
+        hypothesisId:"CSV_USERS",
+        location:"src/app/admin/page.tsx:UserManagementPage-exportUsersCSV",
+        message:"User management CSV exported",
+        data:{ rowCount: rows.length },
+        timestamp:Date.now(),
+      }),
+    }).catch(()=>{});
+    // #endregion agent log
+
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+    a.download=`NEU-Library-Users-${exportedAt.slice(0,10)}.csv`;
+    a.click();
+  };
+
   return (
     <div style={{ padding:"28px 32px", minHeight:"100vh" }}>
       <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:24 }}>
@@ -934,7 +1026,14 @@ function UserManagementPage({ students, loading }: { students:Student[]; loading
             style={{ height:40, padding:"0 14px", background:"rgba(255,255,255,.05)", border:"1px solid rgba(255,255,255,.1)", borderRadius:8, color:"rgba(255,255,255,.6)", fontSize:13, fontWeight:700, fontFamily:"'DM Sans',sans-serif", cursor:"pointer" }}>
             {sortDir==="asc"?"↑ Asc":"↓ Desc"}
           </button>
-          <span style={{ marginLeft:"auto", fontSize:12, color:"rgba(255,255,255,.35)", fontWeight:600 }}>{filtered.length} users</span>
+          <span style={{ fontSize:12, color:"rgba(255,255,255,.35)", fontWeight:600 }}>{filtered.length} users</span>
+          <button
+            onClick={exportUsersCSV}
+            style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:6, padding:"9px 16px", background:"transparent", border:"1px solid rgba(212,175,55,.35)", borderRadius:10, color:"#DAA520", fontSize:12, fontWeight:700, fontFamily:"'DM Sans',sans-serif", cursor:"pointer", whiteSpace:"nowrap" }}
+            onMouseEnter={e=>{(e.currentTarget as HTMLButtonElement).style.background="rgba(212,175,55,.08)";}}
+            onMouseLeave={e=>{(e.currentTarget as HTMLButtonElement).style.background="transparent";}}>
+            ↓ Export Users CSV
+          </button>
         </div>
       </div>
 

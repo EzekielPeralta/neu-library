@@ -153,7 +153,7 @@ export default function KioskPage() {
       }, 5000);
       return;
     }
-    
+
     const today   = new Date().toISOString().split("T")[0];
     const nowTime = new Date().toTimeString().split(" ")[0];
 
@@ -171,11 +171,13 @@ export default function KioskPage() {
         .update({ time_out: nowTime, visit_status: "completed" })
         .eq("visit_id", existing[0].visit_id);
 
-      setResultFlow("timeout");
+setResultFlow("timeout");
       setResultStudent(student);
       setResultTime(new Date().toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit",hour12:true}));
       setStatus("success");
       setShowResult(true);
+      // Sign out Google session so kiosk doesn't auto-login next visitor
+      await supabase.auth.signOut();
 
       setTimeout(() => {
         setShowResult(false);
@@ -183,7 +185,7 @@ export default function KioskPage() {
         setMessage("Scan QR or sign in with Google");
         qrStarted.current = false;
         startQR();
-      }, 10000);
+      }, 5000);
 
     } else {
       // TIME IN
@@ -198,7 +200,9 @@ export default function KioskPage() {
       sessionStorage.setItem("kiosk_mode", "true");
       setStatus("success");
       setMessage(`Welcome, ${student.name.split(" ")[0]}!`);
-      setTimeout(() => router.push("/reason"), 1000);
+      // Sign out Google session so kiosk doesn't auto-login next visitor
+      await supabase.auth.signOut();
+      setTimeout(() => router.push("/reason"), 900);
     }
   };
 
@@ -339,7 +343,7 @@ export default function KioskPage() {
               </button>
 
               <button
-                onClick={()=>{ setShowAdminChoice(false); router.push("/admin"); }}
+                onClick={async () => { await supabase.auth.signOut(); setShowAdminChoice(false); router.push("/admin"); }}
                 style={{ width:"100%", padding:"16px 20px", background:"rgba(212,175,55,.07)", border:"1px solid rgba(212,175,55,.2)", borderRadius:14, color:"#fff", cursor:"pointer", textAlign:"left" as const, fontFamily:"'DM Sans',sans-serif", transition:"all .2s" }}
                 onMouseEnter={e=>(e.currentTarget as HTMLButtonElement).style.background="rgba(212,175,55,.14)"}
                 onMouseLeave={e=>(e.currentTarget as HTMLButtonElement).style.background="rgba(212,175,55,.07)"}>

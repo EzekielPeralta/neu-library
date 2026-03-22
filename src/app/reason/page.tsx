@@ -24,7 +24,7 @@ export default function ReasonPage() {
   const router  = useRouter();
   const [selected, setSelected] = useState("");
   const [loading,  setLoading]  = useState(false);
-  const [student,  setStudent]  = useState<{name:string;student_id:string;college:string}|null>(null);
+  const [student,  setStudent]  = useState<{name:string;student_id:string;college:string;photo_url?:string|null}|null>(null);
   const [clock,    setClock]    = useState("");
 
   useEffect(()=>{
@@ -133,6 +133,15 @@ export default function ReasonPage() {
                   <span style={{ width:6, height:6, borderRadius:"50%", background:"#4ade80", display:"inline-block" }} />
                   <span style={{ fontSize:10, fontWeight:700, letterSpacing:".18em", textTransform:"uppercase", color:"rgba(255,255,255,.45)" }}>Step 2 of 3</span>
                 </div>
+
+                {/* Student photo */}
+<div style={{ width:72, height:72, borderRadius:"50%", overflow:"hidden", border:"2px solid rgba(212,175,55,.4)", marginBottom:16, background:"linear-gradient(135deg,#0f2040,#1E3A8A)", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:800, fontSize:26, boxShadow:"0 0 24px rgba(212,175,55,.15)" }}>
+  {student?.photo_url
+    ? <Image src={student.photo_url} alt={firstName} width={72} height={72} style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:"50%"}}/>
+    : firstName.charAt(0)
+  }
+</div>
+
                 <p style={{ fontSize:10, fontWeight:700, letterSpacing:".22em", textTransform:"uppercase", color:"rgba(255,255,255,.3)", marginBottom:6 }}>Welcome back</p>
                 <h2 style={{ fontSize:28, fontWeight:900, color:"#fff", fontFamily:"'Playfair Display',serif", lineHeight:1.15, marginBottom:4 }}>
                   Hello,<br/>

@@ -14,7 +14,7 @@ const R_MAP:Record<string,{icon:string;color:string}> = {
 
 export default function WelcomePage() {
   const router  = useRouter();
-  const [student,   setStudent]   = useState<{name:string;student_id:string;college:string}|null>(null);
+  const [student,   setStudent]   = useState<{name:string;student_id:string;college:string;photo_url?:string|null}|null>(null);
   const [reason,    setReason]    = useState("");
   const [clock,     setClock]     = useState("");
   const [isKiosk,   setIsKiosk]   = useState(false);
@@ -112,10 +112,19 @@ export default function WelcomePage() {
         <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:"24px", position:"relative", zIndex:10 }}>
           <div style={{ width:"100%", maxWidth:700, display:"flex", flexDirection:"column", gap:20, alignItems:"center" }}>
 
-            {/* success icon */}
-            <div className="au" style={{ width:90, height:90, borderRadius:"50%", background:"rgba(74,222,128,.12)", border:"2px solid rgba(74,222,128,.35)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:44, boxShadow:"0 0 40px rgba(74,222,128,.15)" }}>
-              ✅
-            </div>
+            {/* student photo or success icon */}
+            {student?.photo_url ? (
+              <div className="au" style={{ position:"relative" }}>
+                <div style={{ width:100, height:100, borderRadius:"50%", overflow:"hidden", border:"3px solid rgba(74,222,128,.5)", boxShadow:"0 0 40px rgba(74,222,128,.2)" }}>
+                  <Image src={student.photo_url} alt={firstName} width={100} height={100} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                </div>
+                <div style={{ position:"absolute", bottom:0, right:0, width:28, height:28, borderRadius:"50%", background:"#4ade80", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, border:"2px solid #060d1a" }}>✓</div>
+              </div>
+            ) : (
+              <div className="au" style={{ width:90, height:90, borderRadius:"50%", background:"rgba(74,222,128,.12)", border:"2px solid rgba(74,222,128,.35)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:44, boxShadow:"0 0 40px rgba(74,222,128,.15)" }}>
+                ✅
+              </div>
+            )}
 
             {/* welcome text */}
             <div className="au1" style={{ textAlign:"center" }}>
@@ -224,6 +233,14 @@ export default function WelcomePage() {
                     <Image src="/neu-library-logo.png" alt="NEU" width={32} height={32} style={{ width:"100%", height:"100%", objectFit:"contain" }} />
                   </div>
                 </div>
+                {/* Student photo */}
+                {student?.photo_url && (
+                  <div style={{ width:56, height:56, borderRadius:"50%", overflow:"hidden", border:"2px solid rgba(212,175,55,.4)", marginBottom:12, boxShadow:"0 0 20px rgba(212,175,55,.15)" }}>
+                    <Image src={student.photo_url} alt={firstName} width={56} height={56} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                  </div>
+                )}
+                <p style={{ fontSize:10, fontWeight:700, letterSpacing:".22em", textTransform:"uppercase", color:"rgba(255,255,255,.3)", marginBottom:6 }}>Welcome!</p>
+                <h2 style={{ fontSize:26, fontWeight:900, color:"#fff", fontFamily:"'Playfair Display',serif", lineHeight:1.15, marginBottom:4 }}>{student?.name}</h2>
                 <p style={{ fontSize:10, fontWeight:700, letterSpacing:".22em", textTransform:"uppercase", color:"rgba(255,255,255,.3)", marginBottom:6 }}>Welcome!</p>
                 <h2 style={{ fontSize:26, fontWeight:900, color:"#fff", fontFamily:"'Playfair Display',serif", lineHeight:1.15, marginBottom:4 }}>{student?.name}</h2>
                 <p style={{ fontSize:11, color:"rgba(255,255,255,.42)" }}>{student?.college}</p>

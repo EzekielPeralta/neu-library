@@ -6,12 +6,8 @@ import Image from "next/image";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [email,         setEmail]         = useState("");
-  const [password,      setPassword]      = useState("");
   const [error,         setError]         = useState("");
-  const [loading,       setLoading]       = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [showPass,      setShowPass]      = useState(false);
   const [today,         setToday]         = useState("");
 
   useEffect(() => {
@@ -19,37 +15,28 @@ export default function AdminLoginPage() {
     checkGoogleReturn();
   }, []);
 
-  // Handle return from Google OAuth
   const checkGoogleReturn = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return;
-
     const email = session.user.email || "";
-
     if (!email.endsWith("@neu.edu.ph")) {
       await supabase.auth.signOut();
       setError("Only @neu.edu.ph accounts are allowed.");
       return;
     }
-
-    // Check admin role
     const { data: roleData } = await supabase
       .from("user_roles").select("role")
       .eq("email", email).eq("role", "admin").single();
-
     if (!roleData) {
       await supabase.auth.signOut();
       setError("This account does not have admin privileges.");
       return;
     }
-
-    // Set cookies and redirect
     document.cookie = `user_email=${email}; path=/; max-age=86400`;
     document.cookie = `active_role=admin; path=/; max-age=86400`;
     router.push("/admin");
   };
 
-  // Google Sign In
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     setError("");
@@ -64,21 +51,6 @@ export default function AdminLoginPage() {
       setError("Google sign in failed. Please try again.");
       setGoogleLoading(false);
     }
-  };
-
-  // Manual login
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault(); setLoading(true); setError("");
-    const { data: roleData } = await supabase
-      .from("user_roles").select("role")
-      .eq("email", email).eq("role", "admin").single();
-    if (!roleData) { setError("Access denied. Admin privileges required."); setLoading(false); return; }
-    const isValid = password === "admin123" ||
-      (await supabase.from("students").select("student_id").eq("email", email).eq("password", password).single()).data !== null;
-    if (!isValid) { setError("Invalid password. Please try again."); setLoading(false); return; }
-    document.cookie = `user_email=${email}; path=/; max-age=86400`;
-    document.cookie = `active_role=admin; path=/; max-age=86400`;
-    router.push("/admin");
   };
 
   return (
@@ -105,8 +77,6 @@ export default function AdminLoginPage() {
         flexDirection:"column", alignItems:"center", justifyContent:"center",
         padding:"48px 56px",
       }}>
-
-        {/* logo */}
         <div style={{ position:"relative", marginBottom:26, display:"inline-block" }}>
           <div style={{ position:"absolute", inset:-20, borderRadius:"50%", background:"radial-gradient(circle,rgba(212,175,55,.2),transparent 68%)", filter:"blur(18px)" }} />
           <div style={{ width:148, height:148, borderRadius:"50%", background:"rgba(255,255,255,.06)", border:"2px solid rgba(212,175,55,.35)", padding:15, position:"relative", boxShadow:"0 0 50px rgba(212,175,55,.15), 0 24px 50px rgba(0,0,0,.5)" }}>
@@ -115,31 +85,22 @@ export default function AdminLoginPage() {
           </div>
         </div>
 
-        <p style={{ fontSize:11, fontWeight:700, letterSpacing:".36em", textTransform:"uppercase", color:"rgba(255,255,255,.35)", marginBottom:8, textAlign:"center" }}>
-          New Era University
+        <p style={{ fontSize:11, fontWeight:700, letterSpacing:".36em", textTransform:"uppercase", color:"rgba(255,255,255,.35)", marginBottom:8, textAlign:"center" }}>New Era University</p>
+        <h1 style={{ fontSize:52, fontWeight:900, color:"#fff", lineHeight:1, fontFamily:"'Playfair Display',serif", marginBottom:6, textAlign:"center" }}>Library</h1>
+        <p style={{ fontSize:20, fontWeight:700, fontFamily:"'Playfair Display',serif", marginBottom:24, letterSpacing:".05em", textAlign:"center", background:"linear-gradient(90deg,#B8860B,#DAA520,#FFD700,#DAA520,#B8860B)", backgroundSize:"300% auto", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text" }}>
+          Admin Portal
         </p>
-        <h1 style={{ fontSize:52, fontWeight:900, color:"#fff", lineHeight:1, fontFamily:"'Playfair Display',serif", marginBottom:6, textAlign:"center" }}>
-          Library
-        </h1>
-        <p style={{
-          fontSize:20, fontWeight:700, fontFamily:"'Playfair Display',serif",
-          marginBottom:24, letterSpacing:".05em", textAlign:"center",
-          background:"linear-gradient(90deg,#B8860B,#DAA520,#FFD700,#DAA520,#B8860B)",
-          backgroundSize:"300% auto", WebkitBackgroundClip:"text",
-          WebkitTextFillColor:"transparent", backgroundClip:"text",
-        }}>Admin Portal</p>
         <div style={{ width:72, height:1.5, background:"linear-gradient(90deg,transparent,#DAA520,transparent)", marginBottom:28 }} />
 
-        {/* feature list */}
         <div style={{ display:"flex", flexDirection:"column", gap:14, width:"100%", maxWidth:320 }}>
           {[
-            { icon:"◆", label:"Visitor Analytics",   desc:"Real-time stats and charts"       },
-            { icon:"◆", label:"Complete Visit Logs",  desc:"Search, filter and export records" },
-            { icon:"◆", label:"User Management",      desc:"View all registered library users" },
-            { icon:"◆", label:"Time In / Time Out",   desc:"Track every visit duration"        },
+            { label:"Visitor Analytics",   desc:"Real-time stats and charts"        },
+            { label:"Complete Visit Logs",  desc:"Search, filter and export records" },
+            { label:"User Management",      desc:"View all registered library users" },
+            { label:"Time In / Time Out",   desc:"Track every visit duration"        },
           ].map(f=>(
             <div key={f.label} style={{ display:"flex", alignItems:"flex-start", gap:12 }}>
-              <span style={{ fontSize:8, color:"#DAA520", marginTop:5, flexShrink:0 }}>{f.icon}</span>
+              <span style={{ fontSize:8, color:"#DAA520", marginTop:5, flexShrink:0 }}>◆</span>
               <div>
                 <p style={{ fontSize:14, fontWeight:700, color:"rgba(255,255,255,.85)", lineHeight:1.3 }}>{f.label}</p>
                 <p style={{ fontSize:12, color:"rgba(255,255,255,.38)", marginTop:2 }}>{f.desc}</p>
@@ -148,7 +109,6 @@ export default function AdminLoginPage() {
           ))}
         </div>
 
-        {/* restricted notice */}
         <div style={{ marginTop:28, padding:"12px 18px", background:"rgba(212,175,55,.06)", border:"1px solid rgba(212,175,55,.15)", borderRadius:12, width:"100%", maxWidth:320 }}>
           <p style={{ fontSize:12, color:"rgba(212,175,55,.7)", fontWeight:600, textAlign:"center", letterSpacing:".04em" }}>
             🔐 Restricted to authorised personnel only
@@ -157,10 +117,7 @@ export default function AdminLoginPage() {
       </div>
 
       {/* ══ RIGHT PANEL ══ */}
-      <div style={{
-        flex:1, display:"flex", alignItems:"center", justifyContent:"center",
-        padding:"28px 24px", position:"relative", zIndex:2,
-      }}>
+      <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:"28px 24px", position:"relative", zIndex:2 }}>
         <div style={{ width:"100%", maxWidth:440 }}>
 
           {/* mobile logo */}
@@ -174,15 +131,7 @@ export default function AdminLoginPage() {
           </div>
 
           {/* glass card */}
-          <div style={{
-            background:"rgba(255,255,255,.09)",
-            backdropFilter:"blur(28px)",
-            WebkitBackdropFilter:"blur(28px)",
-            border:"1px solid rgba(255,255,255,.15)",
-            borderRadius:24,
-            padding:"32px 30px",
-            boxShadow:"0 10px 50px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.12)",
-          }}>
+          <div style={{ background:"rgba(255,255,255,.09)", backdropFilter:"blur(28px)", WebkitBackdropFilter:"blur(28px)", border:"1px solid rgba(255,255,255,.15)", borderRadius:24, padding:"32px 30px", boxShadow:"0 10px 50px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.12)" }}>
 
             {/* status row */}
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
@@ -197,7 +146,7 @@ export default function AdminLoginPage() {
               Administrator Sign In
             </h2>
             <p style={{ fontSize:14, color:"rgba(255,255,255,.48)", marginBottom:24 }}>
-              Sign in with Google or use your admin credentials
+              Sign in with your NEU Google account to access the dashboard.
             </p>
 
             {error && (
@@ -206,9 +155,9 @@ export default function AdminLoginPage() {
               </div>
             )}
 
-            {/* ── Google Sign In ── */}
+            {/* Google Sign In */}
             <button onClick={handleGoogleSignIn} disabled={googleLoading}
-              style={{ width:"100%", height:50, background:"#fff", border:"none", borderRadius:12, color:"#1f1f1f", fontSize:14, fontWeight:700, fontFamily:"'DM Sans',sans-serif", cursor:googleLoading?"not-allowed":"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10, marginBottom:18, opacity:googleLoading?.7:1, transition:"opacity .2s, transform .15s", boxShadow:"0 4px 16px rgba(0,0,0,.25)" }}
+              style={{ width:"100%", height:52, background:"#fff", border:"none", borderRadius:12, color:"#1f1f1f", fontSize:14, fontWeight:700, fontFamily:"'DM Sans',sans-serif", cursor:googleLoading?"not-allowed":"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10, marginBottom:18, opacity:googleLoading?.7:1, transition:"opacity .2s, transform .15s", boxShadow:"0 4px 16px rgba(0,0,0,.25)" }}
               onMouseEnter={e=>{ if(!googleLoading)(e.currentTarget as HTMLButtonElement).style.transform="translateY(-1px)"; }}
               onMouseLeave={e=>{ (e.currentTarget as HTMLButtonElement).style.transform="translateY(0)"; }}>
               {googleLoading ? (
@@ -227,64 +176,18 @@ export default function AdminLoginPage() {
               {googleLoading ? "Signing in…" : "Sign in with Google (@neu.edu.ph)"}
             </button>
 
-            {/* divider */}
-            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:18 }}>
-              <div style={{ flex:1, height:1, background:"rgba(255,255,255,.1)" }} />
-              <p style={{ fontSize:12, color:"rgba(255,255,255,.3)", fontWeight:600 }}>or use credentials</p>
-              <div style={{ flex:1, height:1, background:"rgba(255,255,255,.1)" }} />
+            {/* info note */}
+            <div style={{ background:"rgba(147,197,253,.07)", border:"1px solid rgba(147,197,253,.15)", borderRadius:10, padding:"12px 14px", marginBottom:18, display:"flex", gap:10, alignItems:"flex-start" }}>
+              <span style={{ fontSize:14, flexShrink:0 }}>ℹ️</span>
+              <p style={{ fontSize:12, color:"rgba(255,255,255,.5)", lineHeight:1.6 }}>
+                Only <strong style={{ color:"rgba(255,255,255,.7)" }}>@neu.edu.ph</strong> accounts with admin privileges can access this dashboard.
+              </p>
             </div>
 
-            {/* manual form */}
-            <form onSubmit={handleLogin} style={{ display:"flex", flexDirection:"column", gap:14 }}>
-              <div>
-                <label style={{ display:"block", fontSize:11, fontWeight:700, letterSpacing:".16em", textTransform:"uppercase", color:"rgba(255,255,255,.48)", marginBottom:7 }}>
-                  Admin Email
-                </label>
-                <div style={{ position:"relative" }}>
-                  <span style={{ position:"absolute", left:15, top:"50%", transform:"translateY(-50%)", fontSize:16, pointerEvents:"none" }}>📧</span>
-                  <input type="email" placeholder="admin@neu.edu.ph"
-                    value={email} onChange={e=>setEmail(e.target.value)} required
-                    style={{ width:"100%", height:50, paddingLeft:48, paddingRight:18, background:"rgba(255,255,255,.07)", border:"1.5px solid rgba(255,255,255,.13)", borderRadius:12, color:"#fff", fontSize:14, fontWeight:500, fontFamily:"'DM Sans',sans-serif", outline:"none", transition:"all .2s" }}
-                    onFocus={e=>{ e.target.style.borderColor="rgba(212,175,55,.55)"; e.target.style.background="rgba(255,255,255,.1)"; }}
-                    onBlur={e=> { e.target.style.borderColor="rgba(255,255,255,.13)"; e.target.style.background="rgba(255,255,255,.07)"; }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display:"block", fontSize:11, fontWeight:700, letterSpacing:".16em", textTransform:"uppercase", color:"rgba(255,255,255,.48)", marginBottom:7 }}>
-                  Password
-                </label>
-                <div style={{ position:"relative" }}>
-                  <span style={{ position:"absolute", left:15, top:"50%", transform:"translateY(-50%)", fontSize:16, pointerEvents:"none" }}>🔑</span>
-                  <input type={showPass?"text":"password"} placeholder="Enter admin password"
-                    value={password} onChange={e=>setPassword(e.target.value)} required
-                    style={{ width:"100%", height:50, paddingLeft:48, paddingRight:48, background:"rgba(255,255,255,.07)", border:"1.5px solid rgba(255,255,255,.13)", borderRadius:12, color:"#fff", fontSize:14, fontWeight:500, fontFamily:"'DM Sans',sans-serif", outline:"none", transition:"all .2s" }}
-                    onFocus={e=>{ e.target.style.borderColor="rgba(212,175,55,.55)"; e.target.style.background="rgba(255,255,255,.1)"; }}
-                    onBlur={e=> { e.target.style.borderColor="rgba(255,255,255,.13)"; e.target.style.background="rgba(255,255,255,.07)"; }}
-                  />
-                  <button type="button" onClick={()=>setShowPass(!showPass)}
-                    style={{ position:"absolute", right:15, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:16, color:"rgba(255,255,255,.38)", padding:4 }}>
-                    {showPass?"🙈":"👁️"}
-                  </button>
-                </div>
-              </div>
-
-              <button type="submit" disabled={loading}
-                style={{ width:"100%", height:50, background:"linear-gradient(135deg,#7a5800,#B8860B,#DAA520,#B8860B)", backgroundSize:"200%", border:"none", borderRadius:12, color:"#fff", fontSize:15, fontWeight:700, fontFamily:"'DM Sans',sans-serif", cursor:loading?"not-allowed":"pointer", transition:"transform .15s, box-shadow .2s", boxShadow:"0 6px 22px rgba(184,134,11,.35)", display:"flex", alignItems:"center", justifyContent:"center", gap:8, opacity:loading?.65:1 }}
-                onMouseEnter={e=>{ if(!loading)(e.currentTarget as HTMLButtonElement).style.transform="translateY(-1px)"; }}
-                onMouseLeave={e=>{ (e.currentTarget as HTMLButtonElement).style.transform="translateY(0)"; }}>
-                {loading
-                  ? <><svg style={{ width:17,height:17,animation:"spin .8s linear infinite" }} viewBox="0 0 24 24" fill="none"><circle style={{ opacity:.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path style={{ opacity:.75 }} fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Verifying…</>
-                  : "Access Dashboard →"
-                }
-              </button>
-            </form>
-
-            <div style={{ marginTop:18, paddingTop:14, borderTop:"1px solid rgba(255,255,255,.08)", display:"flex", flexDirection:"column", gap:6 }}>
+            <div style={{ paddingTop:14, borderTop:"1px solid rgba(255,255,255,.08)", textAlign:"center" }}>
               <div style={{ width:28, height:1, background:"linear-gradient(90deg,transparent,#DAA520,transparent)", margin:"0 auto 10px" }} />
               <button onClick={()=>router.push("/kiosk")}
-                style={{ background:"none", border:"none", cursor:"pointer", fontSize:12, color:"rgba(255,255,255,.3)", fontFamily:"'DM Sans',sans-serif", padding:"4px", textAlign:"center" as const }}>
+                style={{ background:"none", border:"none", cursor:"pointer", fontSize:12, color:"rgba(255,255,255,.3)", fontFamily:"'DM Sans',sans-serif", padding:"4px" }}>
                 ← Back to Kiosk
               </button>
             </div>
@@ -293,7 +196,6 @@ export default function AdminLoginPage() {
       </div>
 
       <style>{`
-        input::placeholder { color:rgba(255,255,255,.28) !important; font-weight:400; }
         @keyframes spin { to{transform:rotate(360deg)} }
         @media(min-width:1024px){
           .login-left { display:flex !important; }

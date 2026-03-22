@@ -129,13 +129,25 @@ export default function KioskPage() {
     };
     tick(); const id=setInterval(tick,1000);
     loadLibraryStatus(); checkGoogleReturn();
-    if(!qrStarted.current){qrStarted.current=true;startQR();}
     return()=>{clearInterval(id);stopQR();};
   },[]);
 
   useEffect(()=>{
-    if(tab==="qr"){if(!qrStarted.current){qrStarted.current=true;startQR();}}
-    else{stopQR();setCamReady(false);qrStarted.current=false;setStatus("idle");}
+    let cancelled=false;
+    if(tab==="qr"){
+      const el=document.getElementById("qr-reader-kiosk");
+      if(el&&el.childElementCount>0)return; // already mounted
+      qrStarted.current=false;
+      const run=async()=>{
+        await new Promise(r=>setTimeout(r,400));
+        if(cancelled)return;
+        if(!qrStarted.current){qrStarted.current=true;startQR();}
+      };
+      run();
+    } else {
+      stopQR();setCamReady(false);qrStarted.current=false;setStatus("idle");
+    }
+    return()=>{ cancelled=true; };
   },[tab]);
 
   const loadLibraryStatus=async()=>{
@@ -223,6 +235,11 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
 
   const startQR=async()=>{
     await new Promise(r=>setTimeout(r,350));
+    // Extra guard — stop any existing instance first
+    try{
+      const existing=document.getElementById("qr-reader-kiosk");
+      if(existing&&existing.innerHTML!=="")return; // already running
+    }catch{}
     try{
       const{Html5Qrcode}=await import("html5-qrcode");
       if(scannerRef.current){try{const o=scannerRef.current as{stop:()=>Promise<void>;clear:()=>void};await o.stop();o.clear();}catch{}scannerRef.current=null;}

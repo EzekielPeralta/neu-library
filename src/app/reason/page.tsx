@@ -135,7 +135,7 @@ export default function ReasonPage() {
                 </div>
 
                 {/* Student photo */}
-<div style={{ width:72, height:72, borderRadius:"50%", overflow:"hidden", border:"2px solid rgba(212,175,55,.4)", marginBottom:16, background:"linear-gradient(135deg,#0f2040,#1E3A8A)", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:800, fontSize:26, boxShadow:"0 0 24px rgba(212,175,55,.15)" }}>
+<div style={{width:110,height:110,borderRadius:"50%", overflow:"hidden", border:"2px solid rgba(212,175,55,.4)", marginBottom:16, background:"linear-gradient(135deg,#0f2040,#1E3A8A)", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:800, fontSize:26, boxShadow:"0 0 24px rgba(212,175,55,.15)" }}>
   {student?.photo_url
     ? <Image src={student.photo_url} alt={firstName} width={72} height={72} style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:"50%"}}/>
     : firstName.charAt(0)

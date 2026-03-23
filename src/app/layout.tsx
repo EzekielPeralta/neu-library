@@ -26,6 +26,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
+        <link rel="icon" type="image/png" sizes="32x32" href="/neu-library-logo.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/neu-library-logo.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/neu-library-logo.png" />
+        <link rel="shortcut icon" href="/neu-library-logo.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />

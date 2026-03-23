@@ -187,9 +187,10 @@ export default function KioskPage() {
 
   useEffect(()=>{
     let cancelled=false;
-    if(tab==="qr"){
+    if(tab==="qr" && !showIntro){
       const el=document.getElementById("qr-reader-kiosk");
       if(el&&el.childElementCount>0)return; // already mounted
+      if(qrStarted.current)return; // already started
       qrStarted.current=false;
       const run=async()=>{
         await new Promise(r=>setTimeout(r,400));
@@ -201,7 +202,7 @@ export default function KioskPage() {
       stopQR();setCamReady(false);qrStarted.current=false;setStatus("idle");
     }
     return()=>{ cancelled=true; if(tab!=="qr"){stopQR();} };
-  },[tab]);
+  },[tab, showIntro]);
 
   const loadLibraryStatus=async()=>{
     const{data:ls}=await supabase.from("library_status").select("*").eq("id",1).single();
@@ -308,10 +309,17 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
   };
 
   const startQR=async()=>{
+    console.log('startQR called, qrStarted.current:', qrStarted.current);
+    if(qrStarted.current) {
+      console.log('QR already started, aborting');
+      return;
+    }
+    
     await new Promise(r=>setTimeout(r,350));
     
     // CRITICAL FIX: Stop any existing scanner first
     if(scannerRef.current){
+      console.log('Stopping existing scanner');
       try{
         const o=scannerRef.current as{stop:()=>Promise<void>;clear:()=>void;isScanning?:boolean};
         if(o.isScanning){await o.stop();}
@@ -322,13 +330,18 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
     
     // Clear DOM to prevent double camera
     const existing=document.getElementById("qr-reader-kiosk");
-    if(existing){existing.innerHTML="";}
+    if(existing){
+      console.log('Clearing existing DOM');
+      existing.innerHTML="";
+    }
     
     try{
+      console.log('Creating new Html5Qrcode instance');
       const{Html5Qrcode}=await import("html5-qrcode");
       const qr=new Html5Qrcode("qr-reader-kiosk");
       scannerRef.current=qr as unknown;
       
+      console.log('Starting QR scanner');
       await qr.start(
         {facingMode:"environment"},
         {fps:10,qrbox:{width:220,height:220}},
@@ -336,6 +349,7 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
           if(!scannerRef.current)return;
           const currentScanner=scannerRef.current as{stop:()=>Promise<void>;clear:()=>void};
           scannerRef.current=null;
+          qrStarted.current=false;
           try{
             await currentScanner.stop();
             currentScanner.clear();
@@ -349,10 +363,13 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
       );
       setCamReady(true);
       setStatus("scanning");
-    }catch{
+      console.log('QR scanner started successfully');
+    }catch(err){
+      console.error('QR scanner error:', err);
       setStatus("error");
       setMessage("Camera unavailable — use manual entry or Google Sign In");
       setCamReady(false);
+      qrStarted.current=false;
     }
   };
 

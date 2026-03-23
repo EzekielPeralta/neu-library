@@ -99,10 +99,10 @@ export default function HelpPage() {
               setQrStudentId(student.student_id);
               setQrStudentName(student.name);
               setShowQRModal(true);
-              await supabase.auth.signOut();
               window.history.replaceState({}, "", "/help");
             } else {
               setQrError("No account found. Please register first.");
+              window.history.replaceState({}, "", "/help");
             }
           }
         }

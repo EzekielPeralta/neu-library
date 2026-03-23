@@ -32,6 +32,7 @@ export default function KioskIntro({ onComplete }: KioskIntroProps) {
       clearTimeout(timer3);
       clearTimeout(timer4);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

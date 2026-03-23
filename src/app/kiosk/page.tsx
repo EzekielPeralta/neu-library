@@ -137,11 +137,27 @@ export default function KioskPage() {
   const [showClosed,      setShowClosed]      = useState(false);
   const [quoteIndex,      setQuoteIndex]      = useState(0);
   const [showIntro,       setShowIntro]       = useState(() => {
-    // Check flag on initial state - only skip if flag exists
+    // Check flag on initial state - only skip if flag exists AND is recent (within 2 minutes)
     if (typeof window !== 'undefined') {
       const skipIntro = sessionStorage.getItem('skip_kiosk_intro');
-      console.log('Initial showIntro check - skip_kiosk_intro flag:', skipIntro);
-      const shouldShowIntro = skipIntro !== 'true'; // Only skip if flag is explicitly 'true'
+      const timestamp = sessionStorage.getItem('skip_intro_timestamp');
+      console.log('Initial showIntro check - skip_kiosk_intro flag:', skipIntro, 'timestamp:', timestamp);
+      
+      if (skipIntro === 'true' && timestamp) {
+        const age = Date.now() - parseInt(timestamp);
+        const twoMinutes = 2 * 60 * 1000;
+        if (age < twoMinutes) {
+          console.log('Valid recent skip flag, will skip intro');
+          return false; // Skip intro
+        } else {
+          console.log('Skip flag is stale (older than 2 minutes), clearing and showing intro');
+          sessionStorage.removeItem('skip_kiosk_intro');
+          sessionStorage.removeItem('skip_intro_timestamp');
+          return true; // Show intro
+        }
+      }
+      
+      const shouldShowIntro = skipIntro !== 'true';
       console.log('Will show intro:', shouldShowIntro);
       return shouldShowIntro;
     }
@@ -152,19 +168,7 @@ export default function KioskPage() {
 
   useEffect(()=>{
     // Flag check is now done in useState initializer
-    // This useEffect just handles cleanup and other initialization
-    
-    // CRITICAL: Only clear the flag if this is truly a fresh page load (no navigation from within app)
-    // Check if user just navigated from welcome/reason page by checking if flag was JUST set
-    const skipFlag = sessionStorage.getItem('skip_kiosk_intro');
-    const kioskMode = sessionStorage.getItem('kiosk_mode');
-    
-    // If skip flag exists but NO kiosk_mode, it's a stale flag from previous session
-    if (skipFlag && !kioskMode) {
-      console.log('Stale skip_kiosk_intro flag detected (no kiosk_mode), clearing and showing intro');
-      sessionStorage.removeItem('skip_kiosk_intro');
-      setShowIntro(true);
-    }
+    // No need to clear flag here - it will be cleared when user starts new interaction
     
     const tick=()=>{
       setClock(new Date().toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:true}));
@@ -240,8 +244,9 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
   };
 
   const processCheckIn=async(student:KioskStudent)=>{
-    // Clear skip intro flag since user is now actively using kiosk
+    // Clear skip intro flag and timestamp since user is now actively using kiosk
     sessionStorage.removeItem('skip_kiosk_intro');
+    sessionStorage.removeItem('skip_intro_timestamp');
     
     setStatus("processing");setMessage("Processing…");
     const{data:ls}=await supabase.from("library_status").select("is_open").eq("id",1).single();
@@ -262,6 +267,7 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
       
       // Set skip intro flag for check-out flow too
       sessionStorage.setItem('skip_kiosk_intro', 'true');
+      sessionStorage.setItem('skip_intro_timestamp', Date.now().toString());
       
       setResultFlow("timeout");setResultStudent(student);
       setResultTime(new Date().toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit",hour12:true}));
@@ -461,9 +467,10 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
       {/* Animated Intro */}
       {showIntro && <KioskIntro onComplete={() => {
         setShowIntro(false);
-        // Clear flag after natural intro completion (fresh start)
+        // Clear flag and timestamp after natural intro completion (fresh start)
         sessionStorage.removeItem('skip_kiosk_intro');
-        console.log('Intro completed naturally, cleared skip flag');
+        sessionStorage.removeItem('skip_intro_timestamp');
+        console.log('Intro completed naturally, cleared skip flag and timestamp');
       }} />}
       
       <div className="kiosk-layout"

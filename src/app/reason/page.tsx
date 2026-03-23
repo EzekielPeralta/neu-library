@@ -62,6 +62,7 @@ export default function ReasonPage() {
     
     // Set flag to skip intro when returning to kiosk
     sessionStorage.setItem('skip_kiosk_intro', 'true');
+    sessionStorage.setItem('skip_intro_timestamp', Date.now().toString());
     console.log('Reason page - set skip_kiosk_intro flag before redirect to welcome');
     
     router.push("/welcome");

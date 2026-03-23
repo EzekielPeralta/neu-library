@@ -58,11 +58,13 @@ export default function WelcomePage() {
           clearInterval(countId);
           // Preserve skip_kiosk_intro flag before clearing
           const skipIntro = sessionStorage.getItem('skip_kiosk_intro');
+          const skipTimestamp = sessionStorage.getItem('skip_intro_timestamp');
           console.log('Welcome auto-redirect - skip_kiosk_intro before clear:', skipIntro);
           sessionStorage.clear();
           if (skipIntro) {
             sessionStorage.setItem('skip_kiosk_intro', skipIntro);
-            console.log('Welcome auto-redirect - restored skip_kiosk_intro flag');
+            if (skipTimestamp) sessionStorage.setItem('skip_intro_timestamp', skipTimestamp);
+            console.log('Welcome auto-redirect - restored skip_kiosk_intro flag and timestamp');
           }
           router.push("/kiosk");
         }
@@ -81,11 +83,13 @@ export default function WelcomePage() {
     if (isKiosk) {
       // Preserve skip_kiosk_intro flag before clearing
       const skipIntro = sessionStorage.getItem('skip_kiosk_intro');
+      const skipTimestamp = sessionStorage.getItem('skip_intro_timestamp');
       console.log('Welcome handleDone - skip_kiosk_intro before clear:', skipIntro);
       sessionStorage.clear();
       if (skipIntro) {
         sessionStorage.setItem('skip_kiosk_intro', skipIntro);
-        console.log('Welcome handleDone - restored skip_kiosk_intro flag');
+        if (skipTimestamp) sessionStorage.setItem('skip_intro_timestamp', skipTimestamp);
+        console.log('Welcome handleDone - restored skip_kiosk_intro flag and timestamp');
       }
       router.push("/kiosk");
     } else {

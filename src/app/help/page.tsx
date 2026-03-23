@@ -85,13 +85,13 @@ export default function HelpPage() {
       console.log("[QR Gen] User email:", email);
       
       if (email.endsWith("@neu.edu.ph")) {
-        const { data: student } = await supabase
+        const { data: student, error: studentError } = await supabase
           .from("students")
           .select("student_id, name")
           .eq("email", email)
           .single();
         
-        console.log("[QR Gen] Student found:", student);
+        console.log("[QR Gen] Student query result:", { student, studentError });
         
         if (student) {
           setQrStudentId(student.student_id);
@@ -106,6 +106,11 @@ export default function HelpPage() {
           console.log("[QR Gen] No student record found");
           return;
         }
+      } else {
+        setQrError("Please use your @neu.edu.ph email.");
+        setQrLoading(false);
+        console.log("[QR Gen] Email doesn't end with @neu.edu.ph");
+        return;
       }
     }
     

@@ -137,16 +137,6 @@ export default function RegisterPage() {
       await supabase.from("user_roles").insert({ email, role: "user" });
     } catch {}
 
-    // Create initial check-in visit
-    const today = new Date().toISOString().split("T")[0];
-    const nowTime = new Date().toTimeString().split(" ")[0];
-    await supabase.from("library_visits").insert({
-      student_id: studentId.trim(),
-      visit_date: today,
-      visit_time: nowTime,
-      visit_status: "inside"
-    });
-
     setLoading(false);
     setShowQRModal(true);
   };
@@ -371,21 +361,10 @@ export default function RegisterPage() {
         isOpen={showQRModal}
         onClose={() => {
           setShowQRModal(false);
-          // Store student data in sessionStorage for reason page
-          const studentData = {
-            student_id: studentId.trim(),
-            name: name.trim(),
-            college: `${selectedCollege?.code} — ${selectedCollege?.name}`,
-            college_code: selectedCollege?.code || "",
-            program_name: selectedProgram?.name || "",
-            year_level: yearLevel,
-            employee_status: empStatus,
-            photo_url: photoPreview
-          };
-          sessionStorage.setItem("student", JSON.stringify(studentData));
-          sessionStorage.setItem("kiosk_mode", "true");
-          // Redirect to reason page
-          router.push("/reason");
+          // Sign out and redirect to kiosk for manual check-in
+          supabase.auth.signOut().then(() => {
+            router.push("/kiosk");
+          });
         }}
         studentId={studentId.trim()}
         studentName={name.trim()}

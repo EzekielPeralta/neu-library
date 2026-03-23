@@ -22,6 +22,7 @@ interface Visit {
     name: string; college: string; employee_status: string;
     email: string; year_level: number | null; program_id: number | null;
     photo_url?: string | null;
+    programs?: { name: string };
   };
 }
 interface Student {
@@ -385,7 +386,7 @@ export default function AdminPage() {
       <div className="admin-main" style={{flex:1,overflow:"auto"}}>
         {activePage==="dashboard" && <DashboardPage visits={visits} loading={loading} today={today} weekAgo={weekAgo} monthStart={monthStart} yearStart={yearStart} cntToday={cntToday} cntWeek={cntWeek} cntMonth={cntMonth} cntYear={cntYear} onRefresh={fetchAll} theme={THEME}/>}
         {activePage==="logs"      && <VisitorLogsPage visits={visits} loading={loading} theme={THEME}/>}
-        {activePage==="users"     && <UserManagementPage students={students} loading={loading} onRefresh={fetchAll} theme={THEME}/>}
+        {activePage==="users"     && <UserManagementPage students={students} visits={visits} loading={loading} onRefresh={fetchAll} theme={THEME}/>}
         {activePage==="schedule"  && <SchedulePage theme={THEME}/>}
         {activePage==="help"      && <HelpManagementPage theme={THEME}/>}
         {activePage==="settings"  && <SettingsPage darkMode={mode==="dark"} textSize={textSize} theme={THEME} onDarkMode={(v)=>{setTheme(v?"dark":"light");}} onTextSize={(v)=>{setTextSize(v);localStorage.setItem("admin_text_size",v);}}/>}
@@ -443,10 +444,36 @@ function DashboardPage({ visits, loading, today, weekAgo, monthStart, yearStart,
   const inside    = visits.filter(v=>v.visit_status==="inside"&&v.visit_date===today);
 
   const exportCSV = () => {
-    const headers = ["Visit ID","Student ID","Name","Email","College","Reason","Visit Date","Time In","Time Out"];
-    const rows = visits.map(v=>[v.visit_id,v.student_id,v.students?.name||"",v.students?.email||"",v.students?.college||"",v.reason||"",v.visit_date,v.visit_time,v.time_out||""]);
-    const csv = [headers,...rows].map(r=>r.map(c=>`"${c}"`).join(",")).join("\n");
-    const a = document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download=`NEU-Library-Visits-${today}.csv`; a.click();
+    const headers = ["Visit ID","Student ID","Name","Email","College","Program","Year Level","User Type","Reason","Visit Date","Time In","Time Out","Duration (minutes)","Status"];
+    const rows = visits.map(v=>{
+      let duration="";
+      if(v.time_out&&v.visit_time){
+        const[h1,m1,s1]=(v.visit_time||"00:00:00").split(":").map(Number);
+        const[h2,m2,s2]=(v.time_out||"00:00:00").split(":").map(Number);
+        const mins=Math.round(((h2*3600+m2*60+(s2||0))-(h1*3600+m1*60+(s1||0)))/60);
+        duration=mins>0?String(mins):"";
+      }
+      // Format date as MM/DD/YYYY for better Excel compatibility
+      const formattedDate = v.visit_date ? new Date(v.visit_date + 'T00:00:00').toLocaleDateString('en-US', {month:'2-digit',day:'2-digit',year:'numeric'}) : v.visit_date;
+      return[
+        v.visit_id,
+        v.student_id,
+        v.students?.name||"",
+        v.students?.email||"",
+        v.students?.college||"",
+        v.students?.programs?.name||"",
+        v.students?.year_level?YEAR_LABELS[v.students.year_level]||"":"",
+        v.students?.employee_status||"",
+        v.reason||"",
+        formattedDate,
+        v.visit_time,
+        v.time_out||"",
+        duration,
+        v.visit_status||(v.time_out?"completed":"")
+      ];
+    });
+    const csv = [headers,...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+    const a = document.createElement("a"); a.href=URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"})); a.download=`NEU-Library-Visits-${today}.csv`; a.click();
   };
 
   return (
@@ -734,14 +761,42 @@ function VisitorLogsPage({ visits, loading, theme }: { visits:Visit[]; loading:b
   const clearFilters=()=>{setSearch("");setFReason("");setFCollege("");setFStatus("");setDateFrom("");setDateTo("");setPeriod("today");setSortBy("date_desc");};
 
   const exportCSV=()=>{
-    const headers=["Visit ID","Student ID","Name","Email","College","Reason","Visit Date","Time In","Time Out","Duration","Status"];
+    const headers=["Visit ID","Student ID","Name","Email","College","Program","Year Level","User Type","Reason","Visit Date","Time In","Time Out","Duration (minutes)","Duration (formatted)","Status"];
     const rows=filtered.map(v=>{
-      let dur="";
-      if(v.time_out){const[h1,m1]=v.visit_time.split(":").map(Number);const[h2,m2]=v.time_out.split(":").map(Number);const diff=(h2*60+m2)-(h1*60+m1);dur=`${Math.floor(diff/60)}h ${diff%60}m`;}
-      return[v.visit_id,v.student_id,v.students?.name||"",v.students?.email||"",v.students?.college||"",v.reason||"",v.visit_date,v.visit_time,v.time_out||"",dur,v.visit_status||""];
+      let durMins="",durFormatted="";
+      if(v.time_out&&v.visit_time){
+        const[h1,m1,s1]=(v.visit_time||"00:00:00").split(":").map(Number);
+        const[h2,m2,s2]=(v.time_out||"00:00:00").split(":").map(Number);
+        const totalMins=Math.round(((h2*3600+m2*60+(s2||0))-(h1*3600+m1*60+(s1||0)))/60);
+        if(totalMins>0){
+          durMins=String(totalMins);
+          const hrs=Math.floor(totalMins/60);
+          const mins=totalMins%60;
+          durFormatted=hrs>0?`${hrs}h ${mins}m`:`${mins}m`;
+        }
+      }
+      // Format date as MM/DD/YYYY for better Excel compatibility
+      const formattedDate = v.visit_date ? new Date(v.visit_date + 'T00:00:00').toLocaleDateString('en-US', {month:'2-digit',day:'2-digit',year:'numeric'}) : v.visit_date;
+      return[
+        v.visit_id,
+        v.student_id,
+        v.students?.name||"",
+        v.students?.email||"",
+        v.students?.college||"",
+        v.students?.programs?.name||"",
+        v.students?.year_level?YEAR_LABELS[v.students.year_level]||"":"",
+        v.students?.employee_status||"",
+        v.reason||"",
+        formattedDate,
+        v.visit_time,
+        v.time_out||"",
+        durMins,
+        durFormatted,
+        v.visit_status||(v.time_out?"completed":"no_checkout")
+      ];
     });
-    const csv=[headers,...rows].map(r=>r.map(c=>`"${c}"`).join(",")).join("\n");
-    const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=`NEU-Library-Logs-${today}.csv`;a.click();
+    const csv=[headers,...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+    const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"}));a.download=`NEU-Library-Logs-${today}.csv`;a.click();
   };
 
   const selStyle:React.CSSProperties={height:40,padding:"0 14px",background:theme.card,border:`1px solid ${theme.inputBorder}`,borderRadius:8,color:theme.text,fontSize:13,fontWeight:600,fontFamily:"'DM Sans',sans-serif",outline:"none",cursor:"pointer",colorScheme:theme.isDark?"dark":"light"};
@@ -887,7 +942,7 @@ function VisitorLogsPage({ visits, loading, theme }: { visits:Visit[]; loading:b
 // ══════════════════════════════════════════════════════════
 // USER MANAGEMENT PAGE
 // ══════════════════════════════════════════════════════════
-function UserManagementPage({ students, loading, onRefresh, theme }: { students:Student[]; loading:boolean; onRefresh:()=>void; theme:Theme }) {
+function UserManagementPage({ students, visits, loading, onRefresh, theme }: { students:Student[]; visits:Visit[]; loading:boolean; onRefresh:()=>void; theme:Theme }) {
   const [search,        setSearch]        = useState("");
   const [fStatus,       setFStatus]       = useState("");
   const [sortBy,        setSortBy]        = useState("name");
@@ -938,10 +993,28 @@ function UserManagementPage({ students, loading, onRefresh, theme }: { students:
   const selStyle:React.CSSProperties={height:40,padding:"0 14px",background:theme.card,border:`1px solid ${theme.inputBorder}`,borderRadius:8,color:theme.text,fontSize:13,fontWeight:600,fontFamily:"'DM Sans',sans-serif",outline:"none",cursor:"pointer",colorScheme:theme.isDark?"dark":"light"};
 
   const exportCSV=()=>{
-    const headers=["Student ID","Name","Email","College","Program","Year Level","Type","Blocked"];
-    const rows=filtered.map(s=>[s.student_id,s.name,s.email,s.college,s.programs?.name||"",s.year_level?YEAR_LABELS[s.year_level]||"":"",s.employee_status,s.is_blocked?"Yes":"No"]);
-    const csv=[headers,...rows].map(r=>r.map(c=>`"${c}"`).join(",")).join("\n");
-    const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=`NEU-Library-Users-${new Date().toISOString().slice(0,10)}.csv`;a.click();
+    const headers=["Student ID","Name","Email","College Code","College Name","Program","Year Level","User Type","Account Status","Photo URL","Total Visits"];
+    const rows=filtered.map(s=>{
+      const collegeParts=s.college?s.college.split(" — "):["",""];
+      const collegeCode=collegeParts[0]||"";
+      const collegeName=collegeParts[1]||s.college||"";
+      const totalVisits=visits.filter((v:Visit)=>v.student_id===s.student_id).length;
+      return[
+        s.student_id,
+        s.name,
+        s.email,
+        collegeCode,
+        collegeName,
+        s.programs?.name||"",
+        s.year_level?YEAR_LABELS[s.year_level]||"":"",
+        s.employee_status,
+        s.is_blocked?"Blocked":"Active",
+        s.photo_url||"",
+        String(totalVisits)
+      ];
+    });
+    const csv=[headers,...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+    const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"}));a.download=`NEU-Library-Users-${new Date().toISOString().slice(0,10)}.csv`;a.click();
   };
 
   return (

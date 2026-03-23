@@ -135,6 +135,9 @@ export default function HelpPage() {
     const checkQRGeneration = async () => {
       const params = new URLSearchParams(window.location.search);
       if (params.get("qr") === "generate") {
+        // Wait for Supabase to process OAuth tokens from URL hash
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           const email = session.user.email || "";

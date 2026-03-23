@@ -14,7 +14,6 @@ const SoundContext = createContext<SoundContextType | undefined>(undefined);
 export function SoundProvider({ children }: { children: ReactNode }) {
   const [isMuted, setIsMuted] = useState(false);
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     const savedMute = localStorage.getItem("neu_sound_muted");
@@ -22,33 +21,47 @@ export function SoundProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Initialize AudioContext on first user interaction
-  const initAudioContext = () => {
+  const initAudioContext = async () => {
     if (!audioContext && typeof window !== "undefined") {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      setAudioContext(ctx);
-      setIsInitialized(true);
-      
-      // Resume immediately for mobile
-      if (ctx.state === "suspended") {
-        ctx.resume();
+      try {
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        
+        // Immediately resume for mobile
+        if (ctx.state === "suspended") {
+          await ctx.resume();
+        }
+        
+        // Play silent sound to unlock audio on iOS
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        gain.gain.value = 0;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.001);
+        
+        setAudioContext(ctx);
+      } catch (error) {
+        console.error("Failed to initialize audio:", error);
       }
     }
   };
 
   useEffect(() => {
-    // Add click listener to initialize audio on first interaction
-    const handleFirstInteraction = () => {
+    // Add multiple event listeners for mobile
+    const handleInteraction = () => {
       initAudioContext();
-      document.removeEventListener("click", handleFirstInteraction);
-      document.removeEventListener("touchstart", handleFirstInteraction);
     };
     
-    document.addEventListener("click", handleFirstInteraction);
-    document.addEventListener("touchstart", handleFirstInteraction);
+    const events = ["click", "touchstart", "touchend", "keydown"];
+    events.forEach(event => {
+      document.addEventListener(event, handleInteraction, { once: true });
+    });
     
     return () => {
-      document.removeEventListener("click", handleFirstInteraction);
-      document.removeEventListener("touchstart", handleFirstInteraction);
+      events.forEach(event => {
+        document.removeEventListener(event, handleInteraction);
+      });
       if (audioContext) {
         audioContext.close();
       }
@@ -66,14 +79,22 @@ export function SoundProvider({ children }: { children: ReactNode }) {
     
     // Initialize on first play attempt
     if (!audioContext) {
-      initAudioContext();
+      await initAudioContext();
+      // Retry after a short delay
+      setTimeout(() => playSound(type), 100);
       return;
     }
     
     try {
-      // Always try to resume for mobile browsers
+      // Always resume for mobile
       if (audioContext.state === "suspended") {
         await audioContext.resume();
+      }
+      
+      // Double check state
+      if (audioContext.state !== "running") {
+        console.warn("AudioContext not running:", audioContext.state);
+        return;
       }
       
       if (type === "intro") {

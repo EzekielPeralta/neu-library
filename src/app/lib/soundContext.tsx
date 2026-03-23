@@ -115,7 +115,7 @@ export function SoundProvider({ children }: { children: ReactNode }) {
           osc.frequency.setValueAtTime(note.freq, audioContext.currentTime + note.start);
           
           gain.gain.setValueAtTime(0, audioContext.currentTime + note.start);
-          gain.gain.linearRampToValueAtTime(0.55, audioContext.currentTime + note.start + 0.05);
+          gain.gain.linearRampToValueAtTime(0.8, audioContext.currentTime + note.start + 0.05);
           gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + note.start + note.duration);
           
           osc.start(audioContext.currentTime + note.start);

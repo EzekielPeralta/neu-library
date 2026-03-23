@@ -29,6 +29,8 @@ export default function QRCodeModal({ isOpen, onClose, studentId, studentName }:
     link.download = `NEU-Library-QR-${studentId}.png`;
     link.href = qrDataUrl;
     link.click();
+    // Auto-close modal after download to trigger the flow
+    setTimeout(() => onClose(), 800);
   };
 
   if (!isOpen) return null;

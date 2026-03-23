@@ -259,6 +259,10 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
       // Time out existing visit
       await supabase.from("library_visits").update({time_out:nowTime,visit_status:"completed"}).eq("visit_id",ex.visit_id);
       playSound("checkout");
+      
+      // Set skip intro flag for check-out flow too
+      sessionStorage.setItem('skip_kiosk_intro', 'true');
+      
       setResultFlow("timeout");setResultStudent(student);
       setResultTime(new Date().toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit",hour12:true}));
       setStatus("success");setShowResult(true);await supabase.auth.signOut();

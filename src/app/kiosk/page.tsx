@@ -137,10 +137,12 @@ export default function KioskPage() {
   const [showClosed,      setShowClosed]      = useState(false);
   const [quoteIndex,      setQuoteIndex]      = useState(0);
   const [showIntro,       setShowIntro]       = useState(() => {
-    // Check flag on initial state - only skip if flag exists AND is recent (within 2 minutes)
+    // Check flag on initial state - only skip if flag exists AND is recent (within 1 minute)
+    // Use ONLY sessionStorage so refresh clears it and shows intro
     if (typeof window !== 'undefined') {
       const skipIntro = sessionStorage.getItem('skip_kiosk_intro');
       const timestamp = sessionStorage.getItem('skip_intro_timestamp');
+      
       console.log('Initial showIntro check - skip_kiosk_intro flag:', skipIntro, 'timestamp:', timestamp);
       
       if (skipIntro === 'true' && timestamp) {

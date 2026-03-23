@@ -136,21 +136,21 @@ export default function KioskPage() {
   const [scheduleNote,    setScheduleNote]    = useState<string|null>(null);
   const [showClosed,      setShowClosed]      = useState(false);
   const [quoteIndex,      setQuoteIndex]      = useState(0);
-  const [showIntro,       setShowIntro]       = useState(true); // Show by default
+  const [showIntro,       setShowIntro]       = useState(() => {
+    // Check flag on initial state - only skip if flag exists
+    if (typeof window !== 'undefined') {
+      const skipIntro = sessionStorage.getItem('skip_kiosk_intro');
+      console.log('Initial showIntro check - skip_kiosk_intro flag:', skipIntro);
+      return !skipIntro; // Show intro if NO flag exists
+    }
+    return true; // Default to showing intro
+  });
   const scannerRef = useRef<unknown>(null);
   const qrStarted  = useRef(false);
 
   useEffect(()=>{
-    // Check if intro should be skipped (coming from another page)
-    const skipIntro = sessionStorage.getItem('skip_kiosk_intro');
-    console.log('Kiosk mount - skip_kiosk_intro flag:', skipIntro);
-    if (skipIntro) {
-      console.log('Skipping intro');
-      setShowIntro(false);
-      // DON'T remove flag yet - keep it until user returns to kiosk idle state
-    } else {
-      console.log('No skip flag found, showing intro');
-    }
+    // Flag check is now done in useState initializer
+    // This useEffect just handles cleanup and other initialization
     
     const tick=()=>{
       setClock(new Date().toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:true}));

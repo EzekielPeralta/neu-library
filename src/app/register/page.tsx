@@ -34,7 +34,9 @@ export default function RegisterPage() {
   const router = useRouter();
   const { mode } = useTheme();
   const theme = getThemeColors(mode === "dark");
-  const [name,           setName]           = useState("");
+  const [firstName,      setFirstName]      = useState("");
+  const [lastName,       setLastName]       = useState("");
+  const [suffix,         setSuffix]         = useState("");
   const [studentId,      setStudentId]      = useState("");
   const [idError,        setIdError]        = useState("");
   const [selectedCollege, setSelectedCollege] = useState<College | null>(null);
@@ -62,7 +64,20 @@ export default function RegisterPage() {
     setEmail(em);
     const googleName = session.user.user_metadata?.full_name || "";
     const googlePhoto = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || "";
-    if (googleName) setName(googleName);
+    if (googleName) {
+      // Auto-parse Google name into first/last
+      const parts = googleName.trim().split(/\s+/);
+      if (parts.length === 1) {
+        setFirstName(parts[0]);
+      } else if (parts.length === 2) {
+        setFirstName(parts[0]);
+        setLastName(parts[1]);
+      } else {
+        // 3+ parts: first word = first name, rest = last name
+        setFirstName(parts[0]);
+        setLastName(parts.slice(1).join(" "));
+      }
+    }
     if (googlePhoto) {
       // Get high-quality photo URL (remove size parameter if present)
       const highQualityPhoto = googlePhoto.replace(/=s\d+-c/, '=s400-c'); // Request 400px version
@@ -92,7 +107,8 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) { setError("Please enter your full name."); return; }
+    if (!firstName.trim()) { setError("Please enter your first name."); return; }
+    if (!lastName.trim()) { setError("Please enter your last name."); return; }
     if (!validateId(studentId)) return;
     if (!selectedCollege) { setError("Please select your college."); return; }
     if (!selectedProgram && empStatus === "Student") { setError("Please select your program."); return; }
@@ -121,9 +137,11 @@ export default function RegisterPage() {
       }
     }
 
+    const fullName = `${firstName.trim()} ${lastName.trim()}${suffix.trim() ? " " + suffix.trim() : ""}`;
+
     const { error: insertError } = await supabase.from("students").insert({
       student_id:      studentId.trim(),
-      name:            name.trim(),
+      name:            fullName,
       email,
       college:         collegeDisplay,
       password:        "google_auth",
@@ -143,7 +161,7 @@ export default function RegisterPage() {
     // Prepare student data for session storage
     const data = {
       student_id: studentId.trim(),
-      name: name.trim(),
+      name: fullName,
       college: collegeDisplay,
       college_code: selectedCollege.code,
       program_name: selectedProgram?.name ?? "",
@@ -247,21 +265,41 @@ export default function RegisterPage() {
 
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-            {/* Full name */}
-            <motion.div custom={2} variants={fadeUp} initial="hidden" animate="visible">
-              <label style={{ display: "block", fontSize: 11, fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "rgba(255,255,255,.48)", marginBottom: 7 }}>Full Name</label>
-              <div style={{ position: "relative" }}>
-                <span style={{ position: "absolute", left: 15, top: "50%", transform: "translateY(-50%)", fontSize: 16, pointerEvents: "none" }}>👤</span>
-                <input type="text" placeholder="e.g. Juan dela Cruz" value={name} onChange={e => setName(e.target.value)} required
-                  style={{ width: "100%", height: 50, paddingLeft: 48, paddingRight: 18, background: "rgba(255,255,255,.07)", border: "1.5px solid rgba(255,255,255,.13)", borderRadius: 12, color: "#fff", fontSize: 14, fontFamily: "'DM Sans',sans-serif", outline: "none", transition: "all .2s" }}
+            {/* Name fields */}
+            <motion.div custom={2} variants={fadeUp} initial="hidden" animate="visible" style={{ display: "flex", gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "rgba(255,255,255,.48)", marginBottom: 7 }}>First Name</label>
+                <div style={{ position: "relative" }}>
+                  <span style={{ position: "absolute", left: 15, top: "50%", transform: "translateY(-50%)", fontSize: 16, pointerEvents: "none" }}>👤</span>
+                  <input type="text" placeholder="e.g. Juan" value={firstName} onChange={e => setFirstName(e.target.value)} required
+                    style={{ width: "100%", height: 50, paddingLeft: 48, paddingRight: 18, background: "rgba(255,255,255,.07)", border: "1.5px solid rgba(255,255,255,.13)", borderRadius: 12, color: "#fff", fontSize: 14, fontFamily: "'DM Sans',sans-serif", outline: "none", transition: "all .2s" }}
+                    onFocus={e => { e.target.style.borderColor = "rgba(212,175,55,.55)"; e.target.style.background = "rgba(255,255,255,.11)"; }}
+                    onBlur={e =>  { e.target.style.borderColor = "rgba(255,255,255,.13)"; e.target.style.background = "rgba(255,255,255,.07)"; }}
+                  />
+                </div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "rgba(255,255,255,.48)", marginBottom: 7 }}>Last Name</label>
+                <input type="text" placeholder="e.g. dela Cruz" value={lastName} onChange={e => setLastName(e.target.value)} required
+                  style={{ width: "100%", height: 50, paddingLeft: 18, paddingRight: 18, background: "rgba(255,255,255,.07)", border: "1.5px solid rgba(255,255,255,.13)", borderRadius: 12, color: "#fff", fontSize: 14, fontFamily: "'DM Sans',sans-serif", outline: "none", transition: "all .2s" }}
                   onFocus={e => { e.target.style.borderColor = "rgba(212,175,55,.55)"; e.target.style.background = "rgba(255,255,255,.11)"; }}
                   onBlur={e =>  { e.target.style.borderColor = "rgba(255,255,255,.13)"; e.target.style.background = "rgba(255,255,255,.07)"; }}
                 />
               </div>
             </motion.div>
 
-            {/* Student ID */}
+            {/* Suffix */}
             <motion.div custom={3} variants={fadeUp} initial="hidden" animate="visible">
+              <label style={{ display: "block", fontSize: 11, fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "rgba(255,255,255,.48)", marginBottom: 7 }}>Suffix <span style={{ color: "rgba(255,255,255,.25)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional)</span></label>
+              <input type="text" placeholder="e.g. Jr., Sr., III" value={suffix} onChange={e => setSuffix(e.target.value)}
+                style={{ width: "100%", height: 50, paddingLeft: 18, paddingRight: 18, background: "rgba(255,255,255,.07)", border: "1.5px solid rgba(255,255,255,.13)", borderRadius: 12, color: "#fff", fontSize: 14, fontFamily: "'DM Sans',sans-serif", outline: "none", transition: "all .2s" }}
+                onFocus={e => { e.target.style.borderColor = "rgba(212,175,55,.55)"; e.target.style.background = "rgba(255,255,255,.11)"; }}
+                onBlur={e =>  { e.target.style.borderColor = "rgba(255,255,255,.13)"; e.target.style.background = "rgba(255,255,255,.07)"; }}
+              />
+            </motion.div>
+
+            {/* Student ID */}
+            <motion.div custom={4} variants={fadeUp} initial="hidden" animate="visible">
               <label style={{ display: "block", fontSize: 11, fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "rgba(255,255,255,.48)", marginBottom: 7 }}>Student / Employee ID</label>
               <div style={{ position: "relative" }}>
                 <span style={{ position: "absolute", left: 15, top: "50%", transform: "translateY(-50%)", fontSize: 16, pointerEvents: "none" }}>🎓</span>
@@ -278,7 +316,7 @@ export default function RegisterPage() {
             </motion.div>
 
             {/* Employee type */}
-            <motion.div custom={4} variants={fadeUp} initial="hidden" animate="visible">
+            <motion.div custom={5} variants={fadeUp} initial="hidden" animate="visible">
               <label style={{ display: "block", fontSize: 11, fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "rgba(255,255,255,.48)", marginBottom: 10 }}>I am a…</label>
               <div style={{ display: "flex", gap: 10 }}>
                 {(["Student", "Faculty", "Staff"] as const).map(type => (
@@ -295,7 +333,7 @@ export default function RegisterPage() {
             </motion.div>
 
             {/* College + Program + Year Level */}
-            <motion.div custom={5} variants={fadeUp} initial="hidden" animate="visible">
+            <motion.div custom={6} variants={fadeUp} initial="hidden" animate="visible">
               <CollegeSearchDropdown
                 onCollegeChange={setSelectedCollege}
                 onProgramChange={setSelectedProgram}
@@ -307,7 +345,7 @@ export default function RegisterPage() {
             </motion.div>
 
            {/* Photo upload - LOCKED to Google photo */}
-            <motion.div custom={6} variants={fadeUp} initial="hidden" animate="visible">
+            <motion.div custom={7} variants={fadeUp} initial="hidden" animate="visible">
               <label style={{ display:"block", fontSize:11, fontWeight:700, letterSpacing:".16em", textTransform:"uppercase", color:"rgba(255,255,255,.48)", marginBottom:10 }}>
                 Profile Photo <span style={{ color:"rgba(255,255,255,.25)", fontWeight:400, textTransform:"none", letterSpacing:0 }}>(from Google account)</span>
               </label>
@@ -385,7 +423,7 @@ export default function RegisterPage() {
           }
         }}
         studentId={studentId.trim()}
-        studentName={name.trim()}
+        studentName={`${firstName.trim()} ${lastName.trim()}${suffix.trim() ? " " + suffix.trim() : ""}`}
       />
     </div>
   );

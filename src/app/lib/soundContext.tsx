@@ -14,17 +14,44 @@ const SoundContext = createContext<SoundContextType | undefined>(undefined);
 export function SoundProvider({ children }: { children: ReactNode }) {
   const [isMuted, setIsMuted] = useState(false);
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     const savedMute = localStorage.getItem("neu_sound_muted");
     if (savedMute === "true") setIsMuted(true);
+  }, []);
+
+  // Initialize AudioContext on first user interaction
+  const initAudioContext = () => {
+    if (!audioContext && typeof window !== "undefined") {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      setAudioContext(ctx);
+      setIsInitialized(true);
+      
+      // Resume immediately for mobile
+      if (ctx.state === "suspended") {
+        ctx.resume();
+      }
+    }
+  };
+
+  useEffect(() => {
+    // Add click listener to initialize audio on first interaction
+    const handleFirstInteraction = () => {
+      initAudioContext();
+      document.removeEventListener("click", handleFirstInteraction);
+      document.removeEventListener("touchstart", handleFirstInteraction);
+    };
     
-    // Initialize AudioContext
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    setAudioContext(ctx);
+    document.addEventListener("click", handleFirstInteraction);
+    document.addEventListener("touchstart", handleFirstInteraction);
     
     return () => {
-      ctx.close();
+      document.removeEventListener("click", handleFirstInteraction);
+      document.removeEventListener("touchstart", handleFirstInteraction);
+      if (audioContext) {
+        audioContext.close();
+      }
     };
   }, []);
 
@@ -35,19 +62,25 @@ export function SoundProvider({ children }: { children: ReactNode }) {
   };
 
   const playSound = async (type: SoundType) => {
-    if (isMuted || !audioContext) return;
+    if (isMuted) return;
+    
+    // Initialize on first play attempt
+    if (!audioContext) {
+      initAudioContext();
+      return;
+    }
     
     try {
+      // Always try to resume for mobile browsers
       if (audioContext.state === "suspended") {
         await audioContext.resume();
       }
       
       if (type === "intro") {
-        // Elegant chord progression: C5 -> E5 -> G5 (C major arpeggio)
         const notes = [
-          { freq: 523.25, start: 0, duration: 0.5 },      // C5
-          { freq: 659.25, start: 0.25, duration: 0.5 },   // E5
-          { freq: 783.99, start: 0.5, duration: 0.7 }     // G5
+          { freq: 523.25, start: 0, duration: 0.5 },
+          { freq: 659.25, start: 0.25, duration: 0.5 },
+          { freq: 783.99, start: 0.5, duration: 0.7 }
         ];
         
         notes.forEach(note => {

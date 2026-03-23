@@ -154,17 +154,16 @@ export default function KioskPage() {
     // Flag check is now done in useState initializer
     // This useEffect just handles cleanup and other initialization
     
-    // CRITICAL: Clear the flag on fresh page load if user didn't come from check-in flow
-    // Check if there's student data - if not, this is a fresh load, clear the flag
-    const hasStudentData = sessionStorage.getItem('student') || sessionStorage.getItem('kiosk_mode');
-    if (!hasStudentData) {
-      const hadFlag = sessionStorage.getItem('skip_kiosk_intro');
-      if (hadFlag) {
-        console.log('Fresh page load detected, clearing stale skip_kiosk_intro flag');
-        sessionStorage.removeItem('skip_kiosk_intro');
-        // Force show intro if it was hidden by stale flag
-        setShowIntro(true);
-      }
+    // CRITICAL: Only clear the flag if this is truly a fresh page load (no navigation from within app)
+    // Check if user just navigated from welcome/reason page by checking if flag was JUST set
+    const skipFlag = sessionStorage.getItem('skip_kiosk_intro');
+    const kioskMode = sessionStorage.getItem('kiosk_mode');
+    
+    // If skip flag exists but NO kiosk_mode, it's a stale flag from previous session
+    if (skipFlag && !kioskMode) {
+      console.log('Stale skip_kiosk_intro flag detected (no kiosk_mode), clearing and showing intro');
+      sessionStorage.removeItem('skip_kiosk_intro');
+      setShowIntro(true);
     }
     
     const tick=()=>{

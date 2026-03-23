@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useRef } from "react";
 
 type SoundType = "intro" | "checkin" | "checkout" | "error" | "success" | "click";
 
@@ -13,57 +13,60 @@ const SoundContext = createContext<SoundContextType | undefined>(undefined);
 
 export function SoundProvider({ children }: { children: ReactNode }) {
   const [isMuted, setIsMuted] = useState(false);
-  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const isUnlockedRef = useRef(false);
 
   useEffect(() => {
     const savedMute = localStorage.getItem("neu_sound_muted");
     if (savedMute === "true") setIsMuted(true);
   }, []);
 
-  // Initialize AudioContext on first user interaction
-  const initAudioContext = async () => {
-    if (!audioContext && typeof window !== "undefined") {
-      try {
-        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        
-        // Immediately resume for mobile
-        if (ctx.state === "suspended") {
-          await ctx.resume();
-        }
-        
-        // Play silent sound to unlock audio on iOS
+  const unlockAudio = async () => {
+    if (isUnlockedRef.current || typeof window === "undefined") return;
+    
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioContextRef.current = ctx;
+      
+      // Resume if suspended
+      if (ctx.state === "suspended") {
+        await ctx.resume();
+      }
+      
+      // Play multiple silent sounds for iOS/Android unlock
+      for (let i = 0; i < 3; i++) {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-        gain.gain.value = 0;
+        gain.gain.value = 0.001;
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + 0.001);
-        
-        setAudioContext(ctx);
-      } catch (error) {
-        console.error("Failed to initialize audio:", error);
+        osc.stop(ctx.currentTime + 0.01);
+        await new Promise(r => setTimeout(r, 10));
       }
+      
+      isUnlockedRef.current = true;
+    } catch (error) {
+      console.error("Audio unlock failed:", error);
     }
   };
 
   useEffect(() => {
-    // Add multiple event listeners for mobile
-    const handleInteraction = () => {
-      initAudioContext();
+    const events = ["touchstart", "touchend", "click", "keydown"];
+    const handler = () => {
+      unlockAudio();
     };
     
-    const events = ["click", "touchstart", "touchend", "keydown"];
     events.forEach(event => {
-      document.addEventListener(event, handleInteraction, { once: true });
+      document.addEventListener(event, handler, { once: true, passive: true });
     });
     
     return () => {
       events.forEach(event => {
-        document.removeEventListener(event, handleInteraction);
+        document.removeEventListener(event, handler);
       });
-      if (audioContext) {
-        audioContext.close();
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
       }
     };
   }, []);
@@ -77,23 +80,19 @@ export function SoundProvider({ children }: { children: ReactNode }) {
   const playSound = async (type: SoundType) => {
     if (isMuted) return;
     
-    // Initialize on first play attempt
-    if (!audioContext) {
-      await initAudioContext();
-      // Retry after a short delay
-      setTimeout(() => playSound(type), 100);
-      return;
+    if (!audioContextRef.current || !isUnlockedRef.current) {
+      await unlockAudio();
+      if (!audioContextRef.current) return;
     }
     
+    const ctx = audioContextRef.current;
+    
     try {
-      // Always resume for mobile
-      if (audioContext.state === "suspended") {
-        await audioContext.resume();
+      if (ctx.state === "suspended") {
+        await ctx.resume();
       }
       
-      // Double check state
-      if (audioContext.state !== "running") {
-        console.warn("AudioContext not running:", audioContext.state);
+      if (ctx.state !== "running") {
         return;
       }
       
@@ -105,30 +104,30 @@ export function SoundProvider({ children }: { children: ReactNode }) {
         ];
         
         notes.forEach(note => {
-          const osc = audioContext.createOscillator();
-          const gain = audioContext.createGain();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
           
           osc.connect(gain);
-          gain.connect(audioContext.destination);
+          gain.connect(ctx.destination);
           
           osc.type = "sine";
-          osc.frequency.setValueAtTime(note.freq, audioContext.currentTime + note.start);
+          osc.frequency.setValueAtTime(note.freq, ctx.currentTime + note.start);
           
-          gain.gain.setValueAtTime(0, audioContext.currentTime + note.start);
-          gain.gain.linearRampToValueAtTime(0.8, audioContext.currentTime + note.start + 0.05);
-          gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + note.start + note.duration);
+          gain.gain.setValueAtTime(0, ctx.currentTime + note.start);
+          gain.gain.linearRampToValueAtTime(0.8, ctx.currentTime + note.start + 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + note.start + note.duration);
           
-          osc.start(audioContext.currentTime + note.start);
-          osc.stop(audioContext.currentTime + note.start + note.duration);
+          osc.start(ctx.currentTime + note.start);
+          osc.stop(ctx.currentTime + note.start + note.duration);
         });
         return;
       }
       
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
       
       oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
+      gainNode.connect(ctx.destination);
       
       let frequency = 440;
       let duration = 0.2;
@@ -163,14 +162,14 @@ export function SoundProvider({ children }: { children: ReactNode }) {
       }
       
       oscillator.type = type === "error" ? "square" : "sine";
-      oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+      oscillator.frequency.setValueAtTime(frequency, ctx.currentTime);
       
-      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-      gainNode.gain.linearRampToValueAtTime(volume, audioContext.currentTime + 0.01);
-      gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + duration);
+      gainNode.gain.setValueAtTime(0, ctx.currentTime);
+      gainNode.gain.linearRampToValueAtTime(volume, ctx.currentTime + 0.01);
+      gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + duration);
       
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + duration);
+      oscillator.start(ctx.currentTime);
+      oscillator.stop(ctx.currentTime + duration);
     } catch (error) {
       console.error("Sound playback failed:", error);
     }

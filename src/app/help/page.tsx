@@ -135,8 +135,8 @@ export default function HelpPage() {
     const checkQRGeneration = async () => {
       const params = new URLSearchParams(window.location.search);
       if (params.get("qr") === "generate") {
-        // Wait for Supabase to process OAuth tokens from URL hash
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Wait longer for Supabase to process OAuth tokens from URL hash
+        await new Promise(resolve => setTimeout(resolve, 2000));
         
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
@@ -151,9 +151,11 @@ export default function HelpPage() {
               setQrStudentId(student.student_id);
               setQrStudentName(student.name);
               setShowQRModal(true);
+              sessionStorage.removeItem('qr_generation_flow');
               window.history.replaceState({}, "", "/help");
             } else {
               setQrError("No account found. Please register first.");
+              sessionStorage.removeItem('qr_generation_flow');
               window.history.replaceState({}, "", "/help");
             }
           }

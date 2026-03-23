@@ -145,12 +145,12 @@ export default function KioskPage() {
       
       if (skipIntro === 'true' && timestamp) {
         const age = Date.now() - parseInt(timestamp);
-        const twoMinutes = 2 * 60 * 1000;
-        if (age < twoMinutes) {
+        const oneMinute = 60 * 1000;
+        if (age < oneMinute) {
           console.log('Valid recent skip flag, will skip intro');
           return false; // Skip intro
         } else {
-          console.log('Skip flag is stale (older than 2 minutes), clearing and showing intro');
+          console.log('Skip flag is stale (older than 1 minute), clearing and showing intro');
           sessionStorage.removeItem('skip_kiosk_intro');
           sessionStorage.removeItem('skip_intro_timestamp');
           return true; // Show intro

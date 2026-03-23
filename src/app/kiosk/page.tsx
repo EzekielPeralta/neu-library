@@ -5,6 +5,7 @@ import { supabase } from "@/app/lib/supabase";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import type { LibrarySchedule, KioskStudent } from "@/app/lib/types";
+import { useTheme, getThemeColors } from "@/app/lib/themeContext";
 
 type Tab    = "qr" | "manual";
 type Status = "idle" | "scanning" | "processing" | "error" | "success";
@@ -12,6 +13,16 @@ type Flow   = "timein" | "timeout";
 
 const BG_IMAGE = "/neu-library-bg.jpg";
 const EASE: [number,number,number,number] = [0.22,1,0.36,1];
+
+const QUOTES = [
+  { text: "Reading is to the mind what exercise is to the body.", author: "Joseph Addison" },
+  { text: "The more that you read, the more things you will know.", author: "Dr. Seuss" },
+  { text: "A room without books is like a body without a soul.", author: "Marcus Tullius Cicero" },
+  { text: "Education is the most powerful weapon to change the world.", author: "Nelson Mandela" },
+  { text: "The beautiful thing about learning is that no one can take it away from you.", author: "B.B. King" },
+  { text: "Knowledge is power. Information is liberating.", author: "Kofi Annan" },
+  { text: "Live as if you were to die tomorrow. Learn as if you were to live forever.", author: "Mahatma Gandhi" },
+];
 
 // ── iOS Liquid Glass style ──
 const GLASS: React.CSSProperties = {
@@ -98,6 +109,8 @@ function ClosedModal({ note, onAdmin }: { note: string | null; onAdmin: () => vo
 // ══════════════════════════════════════════════════════════
 export default function KioskPage() {
   const router = useRouter();
+  const { mode } = useTheme();
+  const theme = getThemeColors(mode === "dark");
   const [tab,             setTab]             = useState<Tab>("qr");
   const [status,          setStatus]          = useState<Status>("idle");
   const [message,         setMessage]         = useState("Scan QR or sign in with Google");
@@ -119,6 +132,7 @@ export default function KioskPage() {
   const [schedules,       setSchedules]       = useState<LibrarySchedule[]>([]);
   const [scheduleNote,    setScheduleNote]    = useState<string|null>(null);
   const [showClosed,      setShowClosed]      = useState(false);
+  const [quoteIndex,      setQuoteIndex]      = useState(0);
   const scannerRef = useRef<unknown>(null);
   const qrStarted  = useRef(false);
 
@@ -129,7 +143,11 @@ export default function KioskPage() {
     };
     tick(); const id=setInterval(tick,1000);
     loadLibraryStatus(); checkGoogleReturn();
-    return()=>{clearInterval(id);stopQR();};
+    // Quote rotation
+    const quoteInterval = setInterval(() => {
+      setQuoteIndex(prev => (prev + 1) % QUOTES.length);
+    }, 8000);
+    return()=>{clearInterval(id);clearInterval(quoteInterval);stopQR();};
   },[]);
 
   useEffect(()=>{
@@ -147,7 +165,7 @@ export default function KioskPage() {
     } else {
       stopQR();setCamReady(false);qrStarted.current=false;setStatus("idle");
     }
-    return()=>{ cancelled=true; };
+    return()=>{ cancelled=true; if(tab!=="qr"){stopQR();} };
   },[tab]);
 
   const loadLibraryStatus=async()=>{
@@ -200,15 +218,19 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
     if(sc?.is_blocked){setStatus("error");setMessage("Your access has been restricted. Please contact the library admin.");setTimeout(()=>{setStatus("idle");setMessage("Scan QR or sign in with Google");qrStarted.current=false;startQR();},5000);return;}
     const today=new Date().toISOString().split("T")[0];
     const nowTime=new Date().toTimeString().split(" ")[0];
-    const{data:ex}=await supabase.from("library_visits").select("*").eq("student_id",student.student_id).eq("visit_date",today).eq("visit_status","inside").order("visit_time",{ascending:false}).limit(1);
-    if(ex&&ex.length>0){
-      await supabase.from("library_visits").update({time_out:nowTime,visit_status:"completed"}).eq("visit_id",ex[0].visit_id);
+    // CRITICAL FIX: Check for existing visit with proper status check
+    const{data:ex}=await supabase.from("library_visits").select("*").eq("student_id",student.student_id).eq("visit_date",today).is("time_out",null).maybeSingle();
+    if(ex){
+      // Time out existing visit
+      await supabase.from("library_visits").update({time_out:nowTime,visit_status:"completed"}).eq("visit_id",ex.visit_id);
       setResultFlow("timeout");setResultStudent(student);
       setResultTime(new Date().toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit",hour12:true}));
       setStatus("success");setShowResult(true);await supabase.auth.signOut();
       setTimeout(()=>{setShowResult(false);setStatus("idle");setMessage("Scan QR or sign in with Google");qrStarted.current=false;startQR();},5000);
     }else{
-      await supabase.from("library_visits").insert({student_id:student.student_id,visit_date:today,visit_time:nowTime,visit_status:"inside"});
+      // Create new visit - SINGLE INSERT ONLY
+      const{error:insertErr}=await supabase.from("library_visits").insert({student_id:student.student_id,visit_date:today,visit_time:nowTime,visit_status:"inside"});
+      if(insertErr){console.error("Insert error:",insertErr);setStatus("error");setMessage("Failed to record visit. Please try again.");setTimeout(()=>{setStatus("idle");setMessage("Scan QR or sign in with Google");qrStarted.current=false;startQR();},3000);return;}
       sessionStorage.setItem("student",JSON.stringify(student));
       sessionStorage.setItem("kiosk_mode","true");
       setStatus("success");
@@ -235,15 +257,21 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
 
   const startQR=async()=>{
     await new Promise(r=>setTimeout(r,350));
-    // Extra guard — stop any existing instance first
-    try{
-      const existing=document.getElementById("qr-reader-kiosk");
-      if(existing&&existing.innerHTML!=="")return; // already running
-    }catch{}
+    // CRITICAL FIX: Always stop and clear any existing scanner first
+    if(scannerRef.current){
+      try{
+        const o=scannerRef.current as{stop:()=>Promise<void>;clear:()=>void;isScanning?:boolean};
+        if(o.isScanning){await o.stop();}
+        o.clear();
+      }catch{}
+      scannerRef.current=null;
+    }
+    // Clear DOM element to prevent double camera
+    const existing=document.getElementById("qr-reader-kiosk");
+    if(existing){existing.innerHTML="";}
+    
     try{
       const{Html5Qrcode}=await import("html5-qrcode");
-      if(scannerRef.current){try{const o=scannerRef.current as{stop:()=>Promise<void>;clear:()=>void};await o.stop();o.clear();}catch{}scannerRef.current=null;}
-      try{const s=new Html5Qrcode("qr-reader-kiosk");await s.stop();s.clear();}catch{}
       const qr=new Html5Qrcode("qr-reader-kiosk");scannerRef.current=qr;
       await qr.start({facingMode:"environment"},{fps:10,qrbox:{width:220,height:220}},
         async(text)=>{if(!scannerRef.current)return;scannerRef.current=null;try{await qr.stop();qr.clear();}catch{}setCamReady(false);setStatus("processing");setMessage("Verifying student ID…");await handleQRSuccess(text.trim());},()=>{});
@@ -361,7 +389,7 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
   // ══ MAIN KIOSK ══
   return (
     <div className="kiosk-layout"
-      style={{height:"100vh",overflow:"auto",fontFamily:"'DM Sans',sans-serif",display:"flex",position:"relative"}}>
+      style={{height:"100vh",overflow:"auto",fontFamily:"'DM Sans',sans-serif",display:"flex",position:"relative",background:theme.bg}}>
 
       {/* ── FULL BACKGROUND PHOTO ── */}
       <div style={{position:"fixed",inset:0,zIndex:0}}>
@@ -378,55 +406,75 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
       {/* ══ LEFT PANEL ══ */}
       <motion.div initial={{opacity:0,x:-24}} animate={{opacity:1,x:0}} transition={{duration:.6,ease:EASE}}
         className="kiosk-left"
-        style={{width:"46%",position:"relative",zIndex:2,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"40px 52px"}}>
+        style={{width:"42%",position:"relative",zIndex:2,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"32px 40px"}}>
 
         <motion.div initial={{opacity:0,y:-16}} animate={{opacity:1,y:0}} transition={{delay:.2,duration:.5}}
-          style={{position:"relative",marginBottom:22,display:"inline-block"}}>
-          <div style={{position:"absolute",inset:-20,borderRadius:"50%",background:"radial-gradient(circle,rgba(212,175,55,.22),transparent 68%)",filter:"blur(18px)"}}/>
-          <div style={{width:140,height:140,borderRadius:"50%",background:"rgba(6,13,26,.5)",border:"2px solid rgba(212,175,55,.4)",padding:14,position:"relative",boxShadow:"0 0 50px rgba(212,175,55,.15),0 24px 50px rgba(0,0,0,.6)",backdropFilter:"blur(10px)"}}>
-            <Image src="/neu-library-logo.png" alt="NEU" width={140} height={140} style={{width:"100%",height:"100%",objectFit:"contain",borderRadius:"50%"}}/>
+          style={{position:"relative",marginBottom:18,display:"inline-block"}}>
+          <div style={{position:"absolute",inset:-18,borderRadius:"50%",background:"radial-gradient(circle,rgba(212,175,55,.22),transparent 68%)",filter:"blur(18px)",animation:"pulse 3s ease-in-out infinite"}}/>
+          <div style={{width:110,height:110,borderRadius:"50%",background:"rgba(6,13,26,.5)",border:"2px solid rgba(212,175,55,.4)",padding:12,position:"relative",boxShadow:"0 0 50px rgba(212,175,55,.15),0 24px 50px rgba(0,0,0,.6)",backdropFilter:"blur(10px)"}}>
+            <Image src="/neu-library-logo.png" alt="NEU" width={110} height={110} style={{width:"100%",height:"100%",objectFit:"contain",borderRadius:"50%"}}/>
           </div>
         </motion.div>
 
         <motion.p initial={{opacity:0}} animate={{opacity:1}} transition={{delay:.3}}
-          style={{fontSize:11,fontWeight:700,letterSpacing:".36em",textTransform:"uppercase",color:"rgba(255,255,255,.7)",marginBottom:7,textAlign:"center"}}>New Era University</motion.p>
+          style={{fontSize:10,fontWeight:700,letterSpacing:".32em",textTransform:"uppercase",color:"rgba(255,255,255,.7)",marginBottom:6,textAlign:"center"}}>New Era University</motion.p>
         <motion.h1 initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:.35}}
-          style={{fontSize:48,fontWeight:900,color:"#fff",lineHeight:1,fontFamily:"'Playfair Display',serif",marginBottom:5,textAlign:"center"}}>Library</motion.h1>
+          style={{fontSize:42,fontWeight:900,color:"#fff",lineHeight:1,fontFamily:"'Playfair Display',serif",marginBottom:4,textAlign:"center"}}>Library</motion.h1>
         <motion.p initial={{opacity:0}} animate={{opacity:1}} transition={{delay:.4}}
-          style={{fontSize:18,fontWeight:700,fontFamily:"'Playfair Display',serif",marginBottom:16,letterSpacing:".05em",textAlign:"center",background:"linear-gradient(90deg,#B8860B,#DAA520,#FFD700,#DAA520,#B8860B)",backgroundSize:"300% auto",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>
-          Visitor Check-in
+          style={{fontSize:16,fontWeight:700,fontFamily:"'Playfair Display',serif",marginBottom:12,letterSpacing:".05em",textAlign:"center",background:"linear-gradient(90deg,#B8860B,#DAA520,#FFD700,#DAA520,#B8860B)",backgroundSize:"300% auto",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>
+          Log System
         </motion.p>
 
-        <motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{delay:.45}} style={{marginBottom:16,textAlign:"center"}}>
+        <motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{delay:.45}} style={{marginBottom:12,textAlign:"center"}}>
           <p style={{fontSize:32,fontWeight:900,fontFamily:"'Playfair Display',serif",color:"#fff",lineHeight:1}}>{clock}</p>
           <p style={{fontSize:12,color:"rgba(255,255,255,.6)",marginTop:3,letterSpacing:".06em"}}>{date}</p>
         </motion.div>
 
-        <div style={{width:72,height:1.5,background:"linear-gradient(90deg,transparent,rgba(212,175,55,.6),transparent)",marginBottom:16}}/>
+        {/* Quotes Slider - Under time */}
+        <motion.div initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{delay:.5}}
+          style={{marginBottom:14,width:"100%",maxWidth:320,minHeight:85,position:"relative",textAlign:"center"}}>
+          <AnimatePresence mode="wait">
+            <motion.div key={quoteIndex}
+              initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}}
+              transition={{duration:.6,ease:EASE}}>
+              <p style={{fontSize:15,fontStyle:"italic",color:"rgba(255,255,255,.75)",lineHeight:1.65,marginBottom:8,fontFamily:"'Playfair Display',serif",fontWeight:500}}>
+                "{QUOTES[quoteIndex].text}"
+              </p>
+              <p style={{fontSize:11,fontWeight:600,color:"rgba(212,175,55,.7)",letterSpacing:".12em",fontFamily:"'DM Sans',sans-serif"}}>— {QUOTES[quoteIndex].author}</p>
+            </motion.div>
+          </AnimatePresence>
+          <div style={{display:"flex",gap:4,marginTop:10,justifyContent:"center"}}>
+            {QUOTES.map((_,i)=>(
+              <div key={i} style={{width:5,height:5,borderRadius:"50%",background:i===quoteIndex?"rgba(212,175,55,.9)":"rgba(255,255,255,.25)",transition:"all .4s"}}/>
+            ))}
+          </div>
+        </motion.div>
 
-        <motion.p initial={{opacity:0}} animate={{opacity:1}} transition={{delay:.5}}
-          style={{fontSize:14,color:"rgba(255,255,255,.65)",textAlign:"center",lineHeight:1.75,marginBottom:22,maxWidth:300}}>
+        <div style={{width:72,height:1.5,background:"linear-gradient(90deg,transparent,rgba(212,175,55,.6),transparent)",marginBottom:14}}/>
+
+        <motion.p initial={{opacity:0}} animate={{opacity:1}} transition={{delay:.55}}
+          style={{fontSize:13,color:"rgba(255,255,255,.65)",textAlign:"center",lineHeight:1.6,marginBottom:18,maxWidth:280}}>
           Scan QR, enter student ID, or sign in with your NEU Google account to check in or out.
         </motion.p>
 
-        <motion.div initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} transition={{delay:.55}}
-          style={{display:"flex",gap:10,width:"100%",maxWidth:300,marginBottom:20}}>
+        <motion.div initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} transition={{delay:.6}}
+          style={{display:"flex",gap:10,width:"100%",maxWidth:280,marginBottom:16}}>
           {[{icon:"→",label:"1st scan",desc:"Time In"},{icon:"←",label:"2nd scan",desc:"Time Out"}].map(b=>(
-            <div key={b.label} style={{flex:1,background:"rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.18)",borderTop:"1px solid rgba(255,255,255,.28)",borderRadius:12,padding:"10px 12px",textAlign:"center",backdropFilter:"blur(20px)"}}>
-              <p style={{fontSize:18,marginBottom:3}}>{b.icon}</p>
-              <p style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,.85)"}}>{b.label}</p>
-              <p style={{fontSize:10,color:"rgba(255,255,255,.5)",marginTop:1}}>{b.desc}</p>
+            <div key={b.label} style={{flex:1,background:"rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.18)",borderTop:"1px solid rgba(255,255,255,.28)",borderRadius:12,padding:"8px 10px",textAlign:"center",backdropFilter:"blur(20px)"}}>
+              <p style={{fontSize:16,marginBottom:2}}>{b.icon}</p>
+              <p style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,.85)"}}>{b.label}</p>
+              <p style={{fontSize:9,color:"rgba(255,255,255,.5)",marginTop:1}}>{b.desc}</p>
             </div>
           ))}
         </motion.div>
 
-        <motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{delay:.6}} style={{display:"flex",gap:8,flexDirection:"column",width:"100%",maxWidth:300}}>
+        <motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{delay:.65}} style={{display:"flex",gap:7,flexDirection:"column",width:"100%",maxWidth:280}}>
           <motion.button whileHover={{scale:1.02}} whileTap={{scale:.97}} onClick={()=>router.push("/auth/admin")}
-            style={{height:40,padding:"0 20px",background:"rgba(212,175,55,.15)",border:"1px solid rgba(212,175,55,.3)",borderTop:"1px solid rgba(212,175,55,.45)",borderRadius:10,color:"#FFD700",fontSize:13,fontWeight:700,fontFamily:"'DM Sans',sans-serif",cursor:"pointer",backdropFilter:"blur(20px)"}}>
+            style={{height:38,padding:"0 18px",background:"rgba(212,175,55,.15)",border:"1px solid rgba(212,175,55,.3)",borderTop:"1px solid rgba(212,175,55,.45)",borderRadius:10,color:"#FFD700",fontSize:12,fontWeight:700,fontFamily:"'DM Sans',sans-serif",cursor:"pointer",backdropFilter:"blur(20px)"}}>
             Admin Access →
           </motion.button>
           <motion.button whileHover={{scale:1.02}} whileTap={{scale:.97}} onClick={()=>router.push("/help")}
-            style={{height:40,padding:"0 20px",background:"rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.2)",borderTop:"1px solid rgba(255,255,255,.32)",borderRadius:10,color:"rgba(255,255,255,.85)",fontSize:13,fontWeight:700,fontFamily:"'DM Sans',sans-serif",cursor:"pointer",backdropFilter:"blur(20px)"}}>
+            style={{height:38,padding:"0 18px",background:"rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.2)",borderTop:"1px solid rgba(255,255,255,.32)",borderRadius:10,color:"rgba(255,255,255,.85)",fontSize:12,fontWeight:700,fontFamily:"'DM Sans',sans-serif",cursor:"pointer",backdropFilter:"blur(20px)"}}>
             ❓ Help & FAQs
           </motion.button>
         </motion.div>
@@ -435,8 +483,8 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
       {/* ══ RIGHT PANEL ══ */}
       <motion.div initial={{opacity:0,x:24}} animate={{opacity:1,x:0}} transition={{duration:.6,ease:EASE}}
         className="kiosk-right"
-        style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:"28px 44px",position:"relative",zIndex:2}}>
-        <div style={{width:"100%",maxWidth:420}}>
+        style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:"24px 36px",position:"relative",zIndex:2}}>
+        <div style={{width:"100%",maxWidth:400}}>
 
           {/* ── iOS GLASS CARD ── */}
           <div style={{
@@ -448,8 +496,8 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
             borderLeft:"1px solid rgba(255,255,255,.28)",
             borderBottom:"1px solid rgba(255,255,255,.08)",
             borderRight:"1px solid rgba(255,255,255,.12)",
-            borderRadius:26,
-            padding:"28px 28px",
+            borderRadius:24,
+            padding:"24px 24px",
             boxShadow:[
               "inset 0 1px 0 rgba(255,255,255,.55)",
               "inset 0 -1px 0 rgba(0,0,0,.06)",
@@ -459,10 +507,10 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
             ].join(","),
           }}>
 
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
               <div>
-                <h2 style={{fontSize:22,fontWeight:900,color:"#fff",fontFamily:"'Playfair Display',serif",marginBottom:2}}>Check-in / Out</h2>
-                <p style={{fontSize:13,color:"rgba(255,255,255,.55)"}}>Scan QR, enter ID, or use Google</p>
+                <h2 style={{fontSize:20,fontWeight:900,color:"#fff",fontFamily:"'Playfair Display',serif",marginBottom:2}}>Check-in / Out</h2>
+                <p style={{fontSize:12,color:"rgba(255,255,255,.55)"}}>Scan QR, enter ID, or use Google</p>
               </div>
               <LibraryBadge isOpen={libOpen}/>
             </div>
@@ -470,7 +518,7 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
             {/* Google button */}
             <motion.button onClick={handleGoogleSignIn} disabled={googleLoading||libOpen===false}
               whileHover={!googleLoading&&libOpen!==false?{y:-1}:{}} whileTap={!googleLoading&&libOpen!==false?{scale:.97}:{}}
-              style={{width:"100%",height:48,background:"#fff",border:"none",borderRadius:12,color:"#1f1f1f",fontSize:14,fontWeight:700,fontFamily:"'DM Sans',sans-serif",cursor:googleLoading||libOpen===false?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:16,opacity:googleLoading||libOpen===false?.5:1,boxShadow:"0 4px 20px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.9)"}}>
+              style={{width:"100%",height:46,background:"#fff",border:"none",borderRadius:12,color:"#1f1f1f",fontSize:13,fontWeight:700,fontFamily:"'DM Sans',sans-serif",cursor:googleLoading||libOpen===false?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:14,opacity:googleLoading||libOpen===false?.5:1,boxShadow:"0 4px 20px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.9)"}}>
               {googleLoading?(
                 <svg style={{width:18,height:18,animation:"spin .8s linear infinite"}} viewBox="0 0 24 24" fill="none"><circle style={{opacity:.25}} cx="12" cy="12" r="10" stroke="#1f1f1f" strokeWidth="4"/><path style={{opacity:.75}} fill="#1f1f1f" d="M4 12a8 8 0 018-8v8z"/></svg>
               ):(
@@ -479,14 +527,14 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
               {googleLoading?"Signing in…":"Continue with Google (@neu.edu.ph)"}
             </motion.button>
 
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
               <div style={{flex:1,height:1,background:"rgba(255,255,255,.15)"}}/>
-              <p style={{fontSize:12,color:"rgba(255,255,255,.45)",fontWeight:600}}>or</p>
+              <p style={{fontSize:11,color:"rgba(255,255,255,.45)",fontWeight:600}}>or</p>
               <div style={{flex:1,height:1,background:"rgba(255,255,255,.15)"}}/>
             </div>
 
             {/* Tabs */}
-            <div style={{display:"flex",background:"rgba(0,0,0,.15)",borderRadius:12,padding:3,marginBottom:18,gap:3,backdropFilter:"blur(10px)"}}>
+            <div style={{display:"flex",background:"rgba(0,0,0,.15)",borderRadius:12,padding:3,marginBottom:16,gap:3,backdropFilter:"blur(10px)"}}>
               {(["qr","manual"] as Tab[]).map(t=>(
                 <button key={t} onClick={()=>setTab(t)}
                   style={{flex:1,padding:"8px 10px",border:"none",borderRadius:9,fontSize:13,fontWeight:700,fontFamily:"'DM Sans',sans-serif",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:5,transition:"all .2s",
@@ -501,26 +549,26 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
             {/* QR tab */}
             {tab==="qr"&&(
               <motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{duration:.2}}>
-                <div style={{background:"rgba(0,0,0,.2)",border:"1px solid rgba(255,255,255,.12)",borderRadius:16,padding:14,marginBottom:12,position:"relative",overflow:"hidden",backdropFilter:"blur(10px)"}}>
-                  {[{top:8,left:8,borderTop:"2px solid #DAA520",borderLeft:"2px solid #DAA520",borderRadius:"4px 0 0 0"},{top:8,right:8,borderTop:"2px solid #DAA520",borderRight:"2px solid #DAA520",borderRadius:"0 4px 0 0"},{bottom:8,left:8,borderBottom:"2px solid #DAA520",borderLeft:"2px solid #DAA520",borderRadius:"0 0 0 4px"},{bottom:8,right:8,borderBottom:"2px solid #DAA520",borderRight:"2px solid #DAA520",borderRadius:"0 0 4px 0"}].map((s,i)=><div key={i} style={{position:"absolute",width:20,height:20,...s}}/>)}
-                  {camReady&&status==="scanning"&&(<div style={{position:"absolute",left:14,right:14,height:2,background:"linear-gradient(90deg,transparent,rgba(218,165,32,.9),transparent)",zIndex:10,pointerEvents:"none",animation:"scanBeam 2.2s ease-in-out infinite",boxShadow:"0 0 8px rgba(218,165,32,.6)"}}/>)}
-                  <div id="qr-reader-kiosk" style={{width:"100%",maxWidth:300,margin:"0 auto"}}/>
+                <div style={{background:"rgba(0,0,0,.2)",border:"1px solid rgba(255,255,255,.12)",borderRadius:16,padding:12,marginBottom:10,position:"relative",overflow:"hidden",backdropFilter:"blur(10px)"}}>
+                  {[{top:8,left:8,borderTop:"2px solid #DAA520",borderLeft:"2px solid #DAA520",borderRadius:"4px 0 0 0"},{top:8,right:8,borderTop:"2px solid #DAA520",borderRight:"2px solid #DAA520",borderRadius:"0 4px 0 0"},{bottom:8,left:8,borderBottom:"2px solid #DAA520",borderLeft:"2px solid #DAA520",borderRadius:"0 0 0 4px"},{bottom:8,right:8,borderBottom:"2px solid #DAA520",borderRight:"2px solid #DAA520",borderRadius:"0 0 4px 0"}].map((s,i)=><div key={i} style={{position:"absolute",width:18,height:18,...s}}/>)}
+                  {camReady&&status==="scanning"&&(<div style={{position:"absolute",left:12,right:12,height:2,background:"linear-gradient(90deg,transparent,rgba(218,165,32,.9),transparent)",zIndex:10,pointerEvents:"none",animation:"scanBeam 2.2s ease-in-out infinite",boxShadow:"0 0 8px rgba(218,165,32,.6)"}}/>)}
+                  <div id="qr-reader-kiosk" style={{width:"100%",maxWidth:280,margin:"0 auto"}}/>
                   {!camReady&&status!=="success"&&(
-                    <div style={{padding:"28px 20px",textAlign:"center"}}>
+                    <div style={{padding:"24px 18px",textAlign:"center"}}>
                       <svg style={{width:26,height:26,margin:"0 auto 8px",display:"block",animation:"spin .8s linear infinite"}} viewBox="0 0 24 24" fill="none"><circle style={{opacity:.18}} cx="12" cy="12" r="10" stroke="#DAA520" strokeWidth="2.5"/><path d="M12 2a10 10 0 0110 10" stroke="#DAA520" strokeWidth="2.5" strokeLinecap="round"/></svg>
                       <p style={{fontSize:13,fontWeight:600,color:"rgba(255,255,255,.55)"}}>{status==="processing"?"Processing…":"Starting camera…"}</p>
                     </div>
                   )}
                   {status==="success"&&(
-                    <motion.div initial={{opacity:0,scale:.8}} animate={{opacity:1,scale:1}} style={{padding:"28px 20px",textAlign:"center"}}>
-                      <svg width="44" height="44" viewBox="0 0 52 52" fill="none" style={{margin:"0 auto 8px",display:"block"}}><circle cx="26" cy="26" r="25" stroke="#4ade80" strokeWidth="1.5"/><path d="M14 26l9 9 15-15" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                      <p style={{fontSize:14,fontWeight:700,color:"#4ade80"}}>{message}</p>
+                    <motion.div initial={{opacity:0,scale:.8}} animate={{opacity:1,scale:1}} style={{padding:"24px 18px",textAlign:"center"}}>
+                      <svg width="40" height="40" viewBox="0 0 52 52" fill="none" style={{margin:"0 auto 8px",display:"block"}}><circle cx="26" cy="26" r="25" stroke="#4ade80" strokeWidth="1.5"/><path d="M14 26l9 9 15-15" stroke="#4ade80" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      <p style={{fontSize:13,fontWeight:700,color:"#4ade80"}}>{message}</p>
                     </motion.div>
                   )}
                 </div>
-                <div style={{display:"flex",alignItems:"center",gap:9,background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:12,padding:"10px 14px",backdropFilter:"blur(10px)"}}>
+                <div style={{display:"flex",alignItems:"center",gap:9,background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:12,padding:"9px 12px",backdropFilter:"blur(10px)"}}>
                   <span style={{fontSize:14,flexShrink:0}}>{status==="error"?"⚠️":status==="success"?"✅":"💡"}</span>
-                  <p style={{fontSize:13,fontWeight:500,color:"rgba(255,255,255,.65)",lineHeight:1.4}}>{status==="scanning"?"Point camera at student QR code":message}</p>
+                  <p style={{fontSize:12,fontWeight:500,color:"rgba(255,255,255,.65)",lineHeight:1.4}}>{status==="scanning"?"Point camera at student QR code":message}</p>
                 </div>
               </motion.div>
             )}
@@ -530,17 +578,17 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
               <motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{duration:.2}}>
                 {manualErr&&(
                   <motion.div initial={{opacity:0,height:0}} animate={{opacity:1,height:"auto"}}
-                    style={{background:"rgba(220,38,38,.15)",border:"1px solid rgba(220,38,38,.3)",borderLeft:"3px solid #ef4444",borderRadius:11,padding:"11px 14px",marginBottom:14,display:"flex",alignItems:"center",gap:9,fontSize:13,color:"#fca5a5"}}>
+                    style={{background:"rgba(220,38,38,.15)",border:"1px solid rgba(220,38,38,.3)",borderLeft:"3px solid #ef4444",borderRadius:11,padding:"10px 12px",marginBottom:12,display:"flex",alignItems:"center",gap:9,fontSize:12,color:"#fca5a5"}}>
                     <span>⚠️</span><span style={{fontWeight:600}}>{manualErr}</span>
                   </motion.div>
                 )}
-                <form onSubmit={handleManualSubmit} style={{display:"flex",flexDirection:"column",gap:13}}>
+                <form onSubmit={handleManualSubmit} style={{display:"flex",flexDirection:"column",gap:12}}>
                   <div>
-                    <label style={{display:"block",fontSize:11,fontWeight:700,letterSpacing:".16em",textTransform:"uppercase",color:"rgba(255,255,255,.55)",marginBottom:7}}>Student ID Number</label>
+                    <label style={{display:"block",fontSize:10,fontWeight:700,letterSpacing:".16em",textTransform:"uppercase",color:"rgba(255,255,255,.55)",marginBottom:6}}>Student ID Number</label>
                     <div style={{position:"relative"}}>
-                      <span style={{position:"absolute",left:15,top:"50%",transform:"translateY(-50%)",fontSize:17,pointerEvents:"none"}}>🎓</span>
-                      <input type="text" placeholder="e.g. 24-11136-791" value={manualId} onChange={e=>setManualId(e.target.value)} required autoFocus
-                        style={{width:"100%",height:50,padding:"0 18px 0 48px",background:"rgba(255,255,255,.12)",border:"1px solid rgba(255,255,255,.25)",borderTop:"1px solid rgba(255,255,255,.35)",borderRadius:12,color:"#fff",fontSize:14,fontWeight:600,fontFamily:"'DM Sans',sans-serif",outline:"none",transition:"all .2s",backdropFilter:"blur(10px)"}}
+                      <span style={{position:"absolute",left:15,top:"50%",transform:"translateY(-50%)",fontSize:16,pointerEvents:"none"}}>🎓</span>
+                      <input type="text" placeholder="e.g. 20-12345-678" value={manualId} onChange={e=>setManualId(e.target.value)} required autoFocus
+                        style={{width:"100%",height:46,padding:"0 18px 0 46px",background:"rgba(255,255,255,.12)",border:"1px solid rgba(255,255,255,.25)",borderTop:"1px solid rgba(255,255,255,.35)",borderRadius:12,color:"#fff",fontSize:13,fontWeight:600,fontFamily:"'DM Sans',sans-serif",outline:"none",transition:"all .2s",backdropFilter:"blur(10px)"}}
                         onFocus={e=>{e.target.style.borderColor="rgba(212,175,55,.6)";e.target.style.background="rgba(255,255,255,.18)";}}
                         onBlur={e=>{e.target.style.borderColor="rgba(255,255,255,.25)";e.target.style.background="rgba(255,255,255,.12)";}}
                       />
@@ -548,24 +596,25 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
                   </div>
                   <motion.button type="submit" disabled={manualLoading||!manualId.trim()}
                     whileHover={!manualLoading&&!!manualId.trim()?{y:-1}:{}} whileTap={!manualLoading&&!!manualId.trim()?{scale:.97}:{}}
-                    style={{width:"100%",height:50,background:"linear-gradient(135deg,rgba(30,64,175,.8),rgba(37,99,235,.9))",border:"1px solid rgba(147,197,253,.3)",borderTop:"1px solid rgba(147,197,253,.5)",borderRadius:12,color:"#fff",fontSize:14,fontWeight:700,fontFamily:"'DM Sans',sans-serif",cursor:manualLoading||!manualId.trim()?"not-allowed":"pointer",opacity:manualLoading||!manualId.trim()?.5:1,display:"flex",alignItems:"center",justifyContent:"center",gap:8,boxShadow:"0 6px 22px rgba(30,64,175,.4),inset 0 1px 0 rgba(255,255,255,.2)"}}>
+                    style={{width:"100%",height:46,background:"linear-gradient(135deg,rgba(30,64,175,.8),rgba(37,99,235,.9))",border:"1px solid rgba(147,197,253,.3)",borderTop:"1px solid rgba(147,197,253,.5)",borderRadius:12,color:"#fff",fontSize:13,fontWeight:700,fontFamily:"'DM Sans',sans-serif",cursor:manualLoading||!manualId.trim()?"not-allowed":"pointer",opacity:manualLoading||!manualId.trim()?.5:1,display:"flex",alignItems:"center",justifyContent:"center",gap:8,boxShadow:"0 6px 22px rgba(30,64,175,.4),inset 0 1px 0 rgba(255,255,255,.2)"}}>
                     {manualLoading?<><svg style={{width:16,height:16,animation:"spin .8s linear infinite"}} viewBox="0 0 24 24" fill="none"><circle style={{opacity:.25}} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path style={{opacity:.75}} fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Processing…</>:"Check In / Out →"}
                   </motion.button>
                 </form>
               </motion.div>
             )}
 
-            <div style={{marginTop:16,paddingTop:12,borderTop:"1px solid rgba(255,255,255,.12)",textAlign:"center"}}>
-              <div style={{width:28,height:1,background:"linear-gradient(90deg,transparent,rgba(212,175,55,.4),transparent)",margin:"0 auto 8px"}}/>
-              <p style={{fontSize:11,color:"rgba(255,255,255,.35)"}}>New Era University · Library Management System</p>
+            <div style={{marginTop:14,paddingTop:10,borderTop:"1px solid rgba(255,255,255,.12)",textAlign:"center"}}>
+              <div style={{width:28,height:1,background:"linear-gradient(90deg,transparent,rgba(212,175,55,.4),transparent)",margin:"0 auto 7px"}}/>
+              <p style={{fontSize:10,color:"rgba(255,255,255,.35)"}}>New Era University · Library Management System</p>
             </div>
           </div>
         </div>
       </motion.div>
 
       <style>{`
-        @keyframes scanBeam{0%{top:14px}50%{top:calc(100% - 14px)}100%{top:14px}}
+        @keyframes scanBeam{0%{top:12px}50%{top:calc(100% - 12px)}100%{top:12px}}
         @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes pulse{0%,100%{opacity:.22}50%{opacity:.35}}
         input::placeholder{color:rgba(255,255,255,.35)!important;font-weight:400;}
         @media(max-width:900px){
           .kiosk-layout{flex-direction:column;}

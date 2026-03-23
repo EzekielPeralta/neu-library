@@ -10,6 +10,7 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/app/lib/supabase";
 import CollegeSearchDropdown from "@/app/components/CollegeSearchDropdown";
+import { useTheme, getThemeColors } from "@/app/lib/themeContext";
 import type { College, Program, HelpContent, LibrarySchedule } from "@/app/lib/types";
 
 // ── Types ──
@@ -39,6 +40,8 @@ interface Theme {
   border: string; text: string; textMuted: string; textFaint: string;
   sidebarBorder: string; inputBg: string; inputBorder: string;
   tableRow: string; tableHeader: string; isDark: boolean;
+  bgGradient?: string;
+  glass?: { background: string; backdropFilter: string; border: string };
 }
 
 const REASONS = ["Studying","Borrowing Books","Research","Group Work","Printing"];
@@ -206,22 +209,20 @@ function DonutChart({ data, colors, theme }: { data:[string,number][]; colors:st
 // ══════════════════════════════════════════════════════════
 export default function AdminPage() {
   const router = useRouter();
+  const { mode, setTheme } = useTheme();
   const [visits,      setVisits]      = useState<Visit[]>([]);
   const [students,    setStudents]    = useState<Student[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [activePage,  setActivePage]  = useState("dashboard");
   const [adminEmail,  setAdminEmail]  = useState("admin@neu.edu.ph");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [darkMode,   setDarkMode]   = useState(true);
   const [textSize,   setTextSize]   = useState<"small"|"medium"|"large">("medium");
 
   useEffect(() => {
     fetchAll();
     const cookie = document.cookie.split(";").find(c=>c.trim().startsWith("user_email="));
     if (cookie) setAdminEmail(decodeURIComponent(cookie.split("=")[1].trim()));
-    const savedDark = localStorage.getItem("admin_dark_mode");
     const savedSize = localStorage.getItem("admin_text_size");
-    if (savedDark !== null) setDarkMode(savedDark === "true");
     if (savedSize) setTextSize(savedSize as "small"|"medium"|"large");
   }, []);
 
@@ -245,22 +246,7 @@ export default function AdminPage() {
   const cntMonth   = visits.filter(v=>v.visit_date>=monthStart).length;
   const cntYear    = visits.filter(v=>v.visit_date>=yearStart).length;
 
-  const THEME: Theme = {
-    bg:          darkMode?"#060d1a":"#e8f0fe",
-    sidebar:     darkMode?"#0a1628":"#dce8fd",
-    card:        darkMode?"#0d1f3e":"#eef4ff",
-    cardAlt:     darkMode?"rgba(255,255,255,.05)":"rgba(99,143,234,.08)",
-    border:      darkMode?"rgba(255,255,255,.07)":"rgba(99,143,234,.2)",
-    text:        darkMode?"#ffffff":"#0f2040",
-    textMuted:   darkMode?"rgba(255,255,255,.55)":"#2d4a7a",
-    textFaint:   darkMode?"rgba(255,255,255,.28)":"#5b7aaa",
-    sidebarBorder: darkMode?"rgba(212,175,55,.1)":"rgba(99,143,234,.25)",
-    inputBg:     darkMode?"rgba(255,255,255,.06)":"#dce8fd",
-    inputBorder: darkMode?"rgba(255,255,255,.13)":"rgba(99,143,234,.3)",
-    tableRow:    darkMode?"rgba(255,255,255,.04)":"rgba(99,143,234,.04)",
-    tableHeader: darkMode?"rgba(255,255,255,.03)":"rgba(99,143,234,.08)",
-    isDark:      darkMode,
-  };
+  const THEME: Theme = getThemeColors(mode === "dark");
 
   const sidebarBtnBase: React.CSSProperties = {
     width:"100%",display:"flex",alignItems:"center",gap:12,padding:"11px 16px",
@@ -282,7 +268,7 @@ export default function AdminPage() {
     <div style={{minHeight:"100vh",display:"flex",fontFamily:"'DM Sans',sans-serif",background:THEME.bg,color:THEME.text,transition:"background .4s ease, color .3s ease"}} className={`admin-text-${textSize}`}>
 
       {/* ── SIDEBAR (desktop) ── */}
-      <div className="admin-sidebar" style={{width:230,flexShrink:0,background:THEME.sidebar,borderRight:`1px solid ${THEME.sidebarBorder}`,display:"flex",flexDirection:"column",position:"sticky",top:0,height:"100vh",boxShadow:darkMode?"none":"2px 0 12px rgba(0,0,0,.06)",transition:"background .4s ease, border-color .4s ease"}}>
+      <div className="admin-sidebar" style={{width:230,flexShrink:0,background:THEME.sidebar,borderRight:`1px solid ${THEME.sidebarBorder}`,display:"flex",flexDirection:"column",position:"sticky",top:0,height:"100vh",boxShadow:THEME.isDark?"none":"2px 0 12px rgba(0,0,0,.06)",transition:"background .4s ease, border-color .4s ease"}}>
         {/* Logo */}
         <div style={{padding:"20px 18px 16px",borderBottom:`1px solid ${THEME.border}`}}>
           <div style={{display:"flex",alignItems:"center",gap:11}}>
@@ -290,7 +276,7 @@ export default function AdminPage() {
               <Image src="/neu-library-logo.png" alt="NEU" width={38} height={38} style={{width:"100%",height:"100%",objectFit:"contain",borderRadius:"50%"}}/>
             </div>
             <div>
-              <p style={{fontSize:12,fontWeight:800,color:darkMode?"#fff":"#0f2040",lineHeight:1.2,letterSpacing:".04em"}}>NEW ERA UNIVERSITY</p>
+              <p style={{fontSize:12,fontWeight:800,color:THEME.text,lineHeight:1.2,letterSpacing:".04em"}}>NEW ERA UNIVERSITY</p>
               <p style={{fontSize:10,color:THEME.textFaint,letterSpacing:".08em"}}>Library Management</p>
             </div>
           </div>
@@ -402,7 +388,7 @@ export default function AdminPage() {
         {activePage==="users"     && <UserManagementPage students={students} loading={loading} onRefresh={fetchAll} theme={THEME}/>}
         {activePage==="schedule"  && <SchedulePage theme={THEME}/>}
         {activePage==="help"      && <HelpManagementPage theme={THEME}/>}
-        {activePage==="settings"  && <SettingsPage darkMode={darkMode} textSize={textSize} theme={THEME} onDarkMode={(v)=>{setDarkMode(v);localStorage.setItem("admin_dark_mode",String(v));}} onTextSize={(v)=>{setTextSize(v);localStorage.setItem("admin_text_size",v);}}/>}
+        {activePage==="settings"  && <SettingsPage darkMode={mode==="dark"} textSize={textSize} theme={THEME} onDarkMode={(v)=>{setTheme(v?"dark":"light");}} onTextSize={(v)=>{setTextSize(v);localStorage.setItem("admin_text_size",v);}}/>}
       </div>
 
      <style>{`
@@ -697,8 +683,10 @@ function VisitorLogsPage({ visits, loading, theme }: { visits:Visit[]; loading:b
   const [period,   setPeriod]   = useState("today");
   const [fReason,  setFReason]  = useState("");
   const [fCollege, setFCollege] = useState("");
+  const [fStatus,  setFStatus]  = useState(""); // inside / completed / all
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo,   setDateTo]   = useState("");
+  const [sortBy,   setSortBy]   = useState("date_desc"); // sorting
 
   const today      = new Date().toISOString().split("T")[0];
   const weekAgo    = new Date(Date.now()-7*86400000).toISOString().split("T")[0];
@@ -707,23 +695,50 @@ function VisitorLogsPage({ visits, loading, theme }: { visits:Visit[]; loading:b
 
   const filtered = visits.filter(v=>{
     const q=search.toLowerCase().trim();
-    const matchSearch=!q||(v.students?.name||"").toLowerCase().includes(q)||(v.students?.email||"").toLowerCase().includes(q)||(v.student_id||"").toLowerCase().includes(q)||(v.students?.college||"").toLowerCase().includes(q);
+    // ── Enhanced search: name, email, student_id, college, program, reason, employee_status, year_level ──
+    const matchSearch=!q||[
+      v.students?.name,
+      v.students?.email,
+      v.student_id,
+      v.students?.college,
+      v.reason,
+      v.students?.employee_status,
+      v.visit_date,
+      v.visit_time,
+      String(v.students?.year_level??""),
+    ].some(f=>(f||"").toLowerCase().includes(q));
     let matchPeriod=true;
     if(dateFrom||dateTo){if(dateFrom)matchPeriod=matchPeriod&&v.visit_date>=dateFrom;if(dateTo)matchPeriod=matchPeriod&&v.visit_date<=dateTo;}
     else{matchPeriod=period==="today"?v.visit_date===today:period==="week"?v.visit_date>=weekAgo:period==="month"?v.visit_date>=monthStart:period==="year"?v.visit_date>=yearStart:true;}
     const matchReason=!fReason||v.reason===fReason;
     const matchCollege=!fCollege||(v.students?.college||"").includes(fCollege);
-    return matchSearch&&matchPeriod&&matchReason&&matchCollege;
+    const matchStatus=!fStatus||(fStatus==="inside"?v.visit_status==="inside":fStatus==="completed"?!!v.time_out:fStatus==="no_checkout"?!v.time_out&&v.visit_status!=="inside":true);
+    return matchSearch&&matchPeriod&&matchReason&&matchCollege&&matchStatus;
+  }).sort((a,b)=>{
+    switch(sortBy){
+      case "date_asc":  return a.visit_date===b.visit_date?a.visit_time.localeCompare(b.visit_time):a.visit_date.localeCompare(b.visit_date);
+      case "date_desc": return a.visit_date===b.visit_date?b.visit_time.localeCompare(a.visit_time):b.visit_date.localeCompare(a.visit_date);
+      case "name_asc":  return (a.students?.name||"").localeCompare(b.students?.name||"");
+      case "name_desc": return (b.students?.name||"").localeCompare(a.students?.name||"");
+      case "timein_asc":  return a.visit_time.localeCompare(b.visit_time);
+      case "timein_desc": return b.visit_time.localeCompare(a.visit_time);
+      case "duration_desc":{
+        const dur=(v:Visit)=>{if(!v.time_out)return-1;const[h1,m1]=v.visit_time.split(":").map(Number);const[h2,m2]=v.time_out.split(":").map(Number);return(h2*60+m2)-(h1*60+m1);};
+        return dur(b)-dur(a);
+      }
+      case "college_asc": return (a.students?.college||"").localeCompare(b.students?.college||"");
+      default: return 0;
+    }
   });
 
-  const clearFilters=()=>{setSearch("");setFReason("");setFCollege("");setDateFrom("");setDateTo("");setPeriod("today");};
+  const clearFilters=()=>{setSearch("");setFReason("");setFCollege("");setFStatus("");setDateFrom("");setDateTo("");setPeriod("today");setSortBy("date_desc");};
 
   const exportCSV=()=>{
-    const headers=["Visit ID","Student ID","Name","Email","College","Reason","Visit Date","Time In","Time Out","Duration"];
+    const headers=["Visit ID","Student ID","Name","Email","College","Reason","Visit Date","Time In","Time Out","Duration","Status"];
     const rows=filtered.map(v=>{
       let dur="";
       if(v.time_out){const[h1,m1]=v.visit_time.split(":").map(Number);const[h2,m2]=v.time_out.split(":").map(Number);const diff=(h2*60+m2)-(h1*60+m1);dur=`${Math.floor(diff/60)}h ${diff%60}m`;}
-      return[v.visit_id,v.student_id,v.students?.name||"",v.students?.email||"",v.students?.college||"",v.reason||"",v.visit_date,v.visit_time,v.time_out||"",dur];
+      return[v.visit_id,v.student_id,v.students?.name||"",v.students?.email||"",v.students?.college||"",v.reason||"",v.visit_date,v.visit_time,v.time_out||"",dur,v.visit_status||""];
     });
     const csv=[headers,...rows].map(r=>r.map(c=>`"${c}"`).join(",")).join("\n");
     const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=`NEU-Library-Logs-${today}.csv`;a.click();
@@ -742,7 +757,7 @@ function VisitorLogsPage({ visits, loading, theme }: { visits:Visit[]; loading:b
       <div style={{background:theme.card,border:`1px solid ${theme.border}`,borderRadius:12,padding:"18px 20px",marginBottom:18,boxShadow:theme.isDark?"none":"0 2px 8px rgba(0,0,0,.06)"}}>
         <div style={{position:"relative",marginBottom:14}}>
           <span style={{position:"absolute",left:14,top:"50%",transform:"translateY(-50%)",fontSize:15,color:theme.textFaint,pointerEvents:"none"}}>⌕</span>
-          <input type="text" placeholder="Search by name, email, student number, or college…" value={search} onChange={e=>setSearch(e.target.value)}
+          <input type="text" placeholder="Search by name, email, student no., college, purpose, date, status…" value={search} onChange={e=>setSearch(e.target.value)}
             style={{width:"100%",height:44,paddingLeft:42,paddingRight:search?40:18,background:theme.inputBg,border:`1px solid ${theme.border}`,borderRadius:9,color:theme.text,fontSize:14,fontFamily:"'DM Sans',sans-serif",outline:"none"}}
             onFocus={e=>e.target.style.borderColor="rgba(212,175,55,.45)"} onBlur={e=>e.target.style.borderColor=theme.border}/>
           {search&&<button onClick={()=>setSearch("")} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:theme.textFaint,fontSize:16,fontFamily:"'DM Sans',sans-serif",padding:4}}>✕</button>}
@@ -759,16 +774,36 @@ function VisitorLogsPage({ visits, loading, theme }: { visits:Visit[]; loading:b
           ))}
         </div>
         <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center"}}>
+          {/* Purpose filter */}
           <select value={fReason} onChange={e=>setFReason(e.target.value)} style={selStyle}>
             <option value="">All Purposes</option>
             {REASONS.map(r=><option key={r} value={r}>{r}</option>)}
           </select>
+          {/* Status filter */}
+          <select value={fStatus} onChange={e=>setFStatus(e.target.value)} style={selStyle}>
+            <option value="">All Statuses</option>
+            <option value="inside">Currently Inside</option>
+            <option value="completed">Checked Out</option>
+            <option value="no_checkout">No Checkout</option>
+          </select>
+          {/* Sort */}
+          <select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={selStyle}>
+            <option value="date_desc">Date: Newest First</option>
+            <option value="date_asc">Date: Oldest First</option>
+            <option value="name_asc">Name: A → Z</option>
+            <option value="name_desc">Name: Z → A</option>
+            <option value="timein_desc">Time In: Latest</option>
+            <option value="timein_asc">Time In: Earliest</option>
+            <option value="duration_desc">Duration: Longest</option>
+            <option value="college_asc">College: A → Z</option>
+          </select>
+          {/* Date range */}
           <div style={{display:"flex",alignItems:"center",gap:6}}>
             <div><p style={{fontSize:10,fontWeight:700,color:theme.textFaint,letterSpacing:".1em",textTransform:"uppercase",marginBottom:3}}>From</p><input type="date" value={dateFrom} onChange={e=>{setDateFrom(e.target.value);setPeriod("");}} style={dateStyle}/></div>
             <div style={{marginTop:16,color:theme.textFaint,fontSize:14}}>→</div>
             <div><p style={{fontSize:10,fontWeight:700,color:theme.textFaint,letterSpacing:".1em",textTransform:"uppercase",marginBottom:3}}>To</p><input type="date" value={dateTo} onChange={e=>{setDateTo(e.target.value);setPeriod("");}} style={dateStyle}/></div>
           </div>
-          {(search||fReason||fCollege||dateFrom||dateTo||period!=="today")&&(
+          {(search||fReason||fCollege||fStatus||dateFrom||dateTo||period!=="today"||sortBy!=="date_desc")&&(
             <button onClick={clearFilters} style={{height:40,padding:"0 14px",background:theme.inputBg,border:`1px solid ${theme.border}`,borderRadius:8,color:theme.textMuted,fontSize:12,fontWeight:700,fontFamily:"'DM Sans',sans-serif",cursor:"pointer"}}>Clear ✕</button>
           )}
           <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:10}}>
@@ -874,12 +909,29 @@ function UserManagementPage({ students, loading, onRefresh, theme }: { students:
   const filtered = localStudents
     .filter(s=>{
       const q=search.toLowerCase();
-      return(!search||s.name?.toLowerCase().includes(q)||s.email?.toLowerCase().includes(q)||s.student_id?.toLowerCase().includes(q)||s.college?.toLowerCase().includes(q))&&(!fStatus||s.employee_status===fStatus);
+      // ── Enhanced search: name, email, student_id, college, program name, year level, employee_status, blocked status ──
+      return(!search||[
+        s.name,
+        s.email,
+        s.student_id,
+        s.college,
+        s.programs?.name,
+        s.employee_status,
+        s.year_level?YEAR_LABELS[s.year_level]:"",
+        s.is_blocked?"blocked":"active",
+      ].some(f=>(f||"").toLowerCase().includes(q)))&&(!fStatus||s.employee_status===fStatus);
     })
     .sort((a,b)=>{
-      const av=sortBy==="name"?a.name:sortBy==="student_id"?a.student_id:sortBy==="college"?a.college:a.employee_status;
-      const bv=sortBy==="name"?b.name:sortBy==="student_id"?b.student_id:sortBy==="college"?b.college:b.employee_status;
-      return sortDir==="asc"?av.localeCompare(bv):bv.localeCompare(av);
+      switch(sortBy){
+        case "name":         return sortDir==="asc"?a.name.localeCompare(b.name):b.name.localeCompare(a.name);
+        case "student_id":   return sortDir==="asc"?a.student_id.localeCompare(b.student_id):b.student_id.localeCompare(a.student_id);
+        case "college":      return sortDir==="asc"?(a.college||"").localeCompare(b.college||""):(b.college||"").localeCompare(a.college||"");
+        case "employee_status": return sortDir==="asc"?a.employee_status.localeCompare(b.employee_status):b.employee_status.localeCompare(a.employee_status);
+        case "year_level":   return sortDir==="asc"?((a.year_level||0)-(b.year_level||0)):((b.year_level||0)-(a.year_level||0));
+        case "program":      return sortDir==="asc"?(a.programs?.name||"").localeCompare(b.programs?.name||""):(b.programs?.name||"").localeCompare(a.programs?.name||"");
+        case "status":       return sortDir==="asc"?(Number(a.is_blocked)-Number(b.is_blocked)):(Number(b.is_blocked)-Number(a.is_blocked));
+        default:             return a.name.localeCompare(b.name);
+      }
     });
 
   const blockedCount = localStudents.filter(s=>s.is_blocked).length;
@@ -922,7 +974,7 @@ function UserManagementPage({ students, loading, onRefresh, theme }: { students:
       <div style={{background:theme.card,border:`1px solid ${theme.border}`,borderRadius:12,padding:"18px 20px",marginBottom:18,boxShadow:theme.isDark?"none":"0 2px 8px rgba(0,0,0,.06)"}}>
         <div style={{position:"relative",marginBottom:14}}>
           <span style={{position:"absolute",left:14,top:"50%",transform:"translateY(-50%)",fontSize:15,color:theme.textFaint}}>⌕</span>
-          <input type="text" placeholder="Search by name, email, student number, or college…" value={search} onChange={e=>setSearch(e.target.value)}
+          <input type="text" placeholder="Search by name, email, student no., college, program, year, type, status…" value={search} onChange={e=>setSearch(e.target.value)}
             style={{width:"100%",height:44,paddingLeft:42,background:theme.inputBg,border:`1px solid ${theme.border}`,borderRadius:9,color:theme.text,fontSize:14,fontFamily:"'DM Sans',sans-serif",outline:"none"}}
             onFocus={e=>e.target.style.borderColor="rgba(212,175,55,.45)"} onBlur={e=>e.target.style.borderColor=theme.border}/>
         </div>
@@ -935,7 +987,10 @@ function UserManagementPage({ students, loading, onRefresh, theme }: { students:
             <option value="name">Sort: Name</option>
             <option value="student_id">Sort: Student No.</option>
             <option value="college">Sort: College</option>
+            <option value="program">Sort: Program</option>
+            <option value="year_level">Sort: Year Level</option>
             <option value="employee_status">Sort: Type</option>
+            <option value="status">Sort: Status (Blocked)</option>
           </select>
           <button onClick={()=>setSortDir(d=>d==="asc"?"desc":"asc")}
             style={{height:40,padding:"0 14px",background:theme.inputBg,border:`1px solid ${theme.border}`,borderRadius:8,color:theme.textMuted,fontSize:13,fontWeight:700,fontFamily:"'DM Sans',sans-serif",cursor:"pointer"}}>
@@ -1558,7 +1613,7 @@ function SettingsPage({ darkMode, textSize, onDarkMode, onTextSize, theme }: {
           <div style={{display:"flex",gap:12}}>
             {[
               {val:true,  label:"Dark Mode",  icon:"◑", desc:"Dark navy theme"},
-              {val:false, label:"Light Mode", icon:"◐", desc:"Clean white theme"},
+              {val:false, label:"Light Mode", icon:"◐", desc:"Clean blue theme"},
             ].map(t=>(
               <button key={String(t.val)} type="button" onClick={()=>onDarkMode(t.val)}
                 style={{flex:1,padding:"16px",borderRadius:12,border:"1.5px solid",cursor:"pointer",textAlign:"left",fontFamily:"'DM Sans',sans-serif",transition:"all .18s",

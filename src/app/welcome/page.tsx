@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import Image from "next/image";
+import { useTheme, getThemeColors } from "@/app/lib/themeContext";
 
 const R_MAP:Record<string,{icon:string;color:string}> = {
   "Studying":        { icon:"📚", color:"#93C5FD" },
@@ -14,6 +15,8 @@ const R_MAP:Record<string,{icon:string;color:string}> = {
 
 export default function WelcomePage() {
   const router  = useRouter();
+  const { mode } = useTheme();
+  const theme = getThemeColors(mode === "dark");
   const [student,   setStudent]   = useState<{name:string;student_id:string;college:string;photo_url?:string|null}|null>(null);
   const [reason,    setReason]    = useState("");
   const [clock,     setClock]     = useState("");
@@ -88,8 +91,8 @@ export default function WelcomePage() {
         <div style={{ position:"fixed", inset:0, backgroundImage:"radial-gradient(circle at 2px 2px,rgba(255,255,255,.025) 1px,transparent 0)", backgroundSize:"30px 30px", pointerEvents:"none" }} />
         <div style={{ position:"fixed", top:0, left:0, right:0, height:3, background:"linear-gradient(90deg,transparent,rgba(212,175,55,.8),transparent)", pointerEvents:"none" }} />
         <div style={{ position:"fixed", bottom:0, left:0, right:0, height:1, background:"linear-gradient(90deg,transparent,rgba(212,175,55,.4),transparent)", pointerEvents:"none" }} />
-        <div style={{ position:"fixed", top:"15%", left:"10%", width:400, height:400, borderRadius:"50%", background:"radial-gradient(circle,rgba(30,64,175,.12),transparent 68%)", filter:"blur(60px)", pointerEvents:"none" }} />
-        <div style={{ position:"fixed", bottom:"15%", right:"10%", width:350, height:350, borderRadius:"50%", background:"radial-gradient(circle,rgba(212,175,55,.08),transparent 68%)", filter:"blur(60px)", pointerEvents:"none" }} />
+        <div style={{ position:"fixed", top:"15%", left:"10%", width:400, height:400, borderRadius:"50%", background:"radial-gradient(circle,rgba(30,64,175,.12),transparent 68%)", filter:"blur(60px)", pointerEvents:"none", animation:"pulse 4s ease-in-out infinite" }} />
+        <div style={{ position:"fixed", bottom:"15%", right:"10%", width:350, height:350, borderRadius:"50%", background:"radial-gradient(circle,rgba(212,175,55,.08),transparent 68%)", filter:"blur(60px)", pointerEvents:"none", animation:"pulse 5s ease-in-out infinite" }} />
 
         {/* TOP BAR */}
         <div style={{ padding:"16px 36px", display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid rgba(212,175,55,.12)", flexShrink:0 }}>
@@ -320,6 +323,18 @@ export default function WelcomePage() {
       </div>
 
       <style>{`
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.7} }
+        .kiosk-bg { background: linear-gradient(145deg,#060d1a 0%,#0d1f3e 40%,#162d55 70%,#0a1628 100%); }
+        .au, .au1, .au2, .au3, .au4 { animation: fadeUp .6s ease forwards; opacity: 0; }
+        .au { animation-delay: .1s; }
+        .au1 { animation-delay: .2s; }
+        .au2 { animation-delay: .3s; }
+        .au3 { animation-delay: .4s; }
+        .au4 { animation-delay: .5s; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .pdot { animation: pulseDot 2s ease-in-out infinite; }
+        @keyframes pulseDot { 0%,100%{opacity:1} 50%{opacity:.4} }
+        .card-white { background: #fff; border: 1px solid #E2E8F0; border-radius: 16px; box-shadow: 0 4px 16px rgba(15,40,80,.08); }
         @media(min-width:1024px){ .welcome-left{display:flex!important} .welcome-mobile{display:none!important} }
         @media(max-width:1023px){ .welcome-left{display:none!important} .welcome-mobile{display:block!important} }
       `}</style>

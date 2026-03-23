@@ -9,7 +9,10 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
+import QRCodeModal from "@/app/components/QRCodeModal";
+import ThemeToggle from "@/app/components/ThemeToggle";
 import type { HelpContent } from "@/app/lib/types";
+import { useTheme, getThemeColors } from "@/app/lib/themeContext";
 
 const BG_IMAGE = "/neu-library-bg.jpg";
 
@@ -35,10 +38,17 @@ const fadeUp = {
 };
 export default function HelpPage() {
   const router = useRouter();
+  const { mode } = useTheme();
+  const theme = getThemeColors(mode === "dark");
   const [items,       setItems]       = useState<HelpContent[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [activeSection, setActiveSection] = useState<Section>("faq");
   const [openItem,    setOpenItem]    = useState<string | null>(null);
+  const [qrLoading,   setQrLoading]   = useState(false);
+  const [qrError,     setQrError]     = useState("");
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [qrStudentId, setQrStudentId] = useState("");
+  const [qrStudentName, setQrStudentName] = useState("");
 
   useEffect(() => {
     supabase
@@ -54,37 +64,91 @@ export default function HelpPage() {
 
   const sectionItems = items.filter(i => i.section === activeSection);
 
+  const handleGenerateQR = async () => {
+    setQrLoading(true);
+    setQrError("");
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/help?qr=generate`,
+        queryParams: { hd: "neu.edu.ph" }
+      }
+    });
+    if (error) {
+      setQrError("Failed to sign in with Google");
+      setQrLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const checkQRGeneration = async () => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("qr") === "generate") {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const email = session.user.email || "";
+          if (email.endsWith("@neu.edu.ph")) {
+            const { data: student } = await supabase
+              .from("students")
+              .select("student_id, name")
+              .eq("email", email)
+              .single();
+            if (student) {
+              setQrStudentId(student.student_id);
+              setQrStudentName(student.name);
+              setShowQRModal(true);
+              await supabase.auth.signOut();
+              window.history.replaceState({}, "", "/help");
+            } else {
+              setQrError("No account found. Please register first.");
+            }
+          }
+        }
+      }
+    };
+    checkQRGeneration();
+  }, []);
+
   return (
-    <div style={{ minHeight: "100vh", fontFamily: "'DM Sans',sans-serif", position: "relative", color: "#fff", display: "flex", flexDirection: "column" }}>
+    <div style={{ minHeight: "100vh", fontFamily: "'DM Sans',sans-serif", position: "relative", color: theme.text, display: "flex", flexDirection: "column", background: theme.bg }}>
 
       {/* Background */}
       <div style={{ position: "fixed", inset: 0, zIndex: 0 }}>
-        <Image src={BG_IMAGE} alt="" fill style={{ objectFit: "cover" }} />
-        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(145deg,rgba(6,13,26,.97) 0%,rgba(13,31,62,.95) 50%,rgba(10,22,40,.97) 100%)" }} />
+        {theme.isDark ? (
+          <>
+            <Image src={BG_IMAGE} alt="" fill style={{ objectFit: "cover" }} />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(145deg,rgba(6,13,26,.97) 0%,rgba(13,31,62,.95) 50%,rgba(10,22,40,.97) 100%)" }} />
+          </>
+        ) : (
+          <div style={{ position: "absolute", inset: 0, background: theme.bgGradient }} />
+        )}
       </div>
-      <div style={{ position: "fixed", inset: 0, backgroundImage: "radial-gradient(circle at 2px 2px,rgba(255,255,255,.02) 1px,transparent 0)", backgroundSize: "28px 28px", pointerEvents: "none", zIndex: 1 }} />
-      <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg,transparent,rgba(212,175,55,.7),transparent)", pointerEvents: "none", zIndex: 2 }} />
+      <div style={{ position: "fixed", inset: 0, backgroundImage: theme.isDark ? "radial-gradient(circle at 2px 2px,rgba(255,255,255,.02) 1px,transparent 0)" : "radial-gradient(circle at 2px 2px,rgba(33,150,243,.04) 1px,transparent 0)", backgroundSize: "28px 28px", pointerEvents: "none", zIndex: 1 }} />
+      <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 2, background: theme.isDark ? "linear-gradient(90deg,transparent,rgba(212,175,55,.7),transparent)" : "linear-gradient(90deg,transparent,rgba(33,150,243,.5),transparent)", pointerEvents: "none", zIndex: 2 }} />
 
       {/* Header */}
       <motion.header
         initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .5 }}
-        style={{ position: "sticky", top: 0, zIndex: 100, height: 60, background: "rgba(6,13,26,.85)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(212,175,55,.12)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 28px" }}
+        style={{ position: "sticky", top: 0, zIndex: 100, height: 60, background: theme.isDark ? "rgba(6,13,26,.85)" : "rgba(227,242,253,.9)", backdropFilter: "blur(20px)", borderBottom: theme.isDark ? "1px solid rgba(212,175,55,.12)" : "1px solid rgba(33,150,243,.2)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 28px" }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 36, height: 36, borderRadius: "50%", border: "1px solid rgba(212,175,55,.3)", padding: 4 }}>
+          <div style={{ width: 36, height: 36, borderRadius: "50%", border: theme.isDark ? "1px solid rgba(212,175,55,.3)" : "1px solid rgba(33,150,243,.3)", padding: 4 }}>
             <Image src="/neu-library-logo.png" alt="NEU" width={36} height={36} style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: "50%" }} />
           </div>
           <div>
-            <p style={{ fontSize: 14, fontWeight: 800, color: "#fff", lineHeight: 1.2 }}>NEU Library</p>
-            <p style={{ fontSize: 10, color: "rgba(255,255,255,.35)", letterSpacing: ".1em", textTransform: "uppercase" }}>Help Center</p>
+            <p style={{ fontSize: 14, fontWeight: 800, color: theme.text, lineHeight: 1.2 }}>NEU Library</p>
+            <p style={{ fontSize: 10, color: theme.textFaint, letterSpacing: ".1em", textTransform: "uppercase" }}>Help Center</p>
           </div>
         </div>
-        <motion.button
-          whileHover={{ scale: 1.02 }} whileTap={{ scale: .97 }}
-          onClick={() => router.push("/kiosk")}
-          style={{ height: 38, padding: "0 18px", background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 10, color: "rgba(255,255,255,.7)", fontSize: 13, fontWeight: 700, fontFamily: "'DM Sans',sans-serif", cursor: "pointer" }}>
-          ← Back to Kiosk
-        </motion.button>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <ThemeToggle />
+          <motion.button
+            whileHover={{ scale: 1.02 }} whileTap={{ scale: .97 }}
+            onClick={() => router.push("/kiosk")}
+            style={{ height: 38, padding: "0 18px", background: theme.glass.background, border: theme.glass.border, borderRadius: 10, color: theme.textMuted, fontSize: 13, fontWeight: 700, fontFamily: "'DM Sans',sans-serif", cursor: "pointer" }}>
+            ← Back to Kiosk
+          </motion.button>
+        </div>
       </motion.header>
 
       {/* Body */}
@@ -92,9 +156,15 @@ export default function HelpPage() {
 
         {/* Title */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .5, delay: .1 }} style={{ marginBottom: 32, textAlign: "center" }}>
-          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".28em", textTransform: "uppercase", color: "rgba(212,175,55,.6)", marginBottom: 8 }}>Need assistance?</p>
-          <h1 style={{ fontSize: 40, fontWeight: 900, color: "#fff", fontFamily: "'Playfair Display',serif", lineHeight: 1.1, marginBottom: 10 }}>Help Center</h1>
-          <p style={{ fontSize: 15, color: "rgba(255,255,255,.45)", maxWidth: 480, margin: "0 auto" }}>
+          <div style={{ position: "relative", display: "inline-block", marginBottom: 16 }}>
+            <div style={{ position: "absolute", inset: -16, borderRadius: "50%", background: theme.isDark ? "radial-gradient(circle,rgba(212,175,55,.2),transparent 68%)" : "radial-gradient(circle,rgba(15,23,42,.12),transparent 68%)", filter: "blur(14px)", animation: "pulse 3s ease-in-out infinite" }} />
+            <div style={{ width: 72, height: 72, borderRadius: "50%", background: theme.isDark ? "rgba(6,13,26,.5)" : "rgba(255,255,255,.9)", border: theme.isDark ? "2px solid rgba(212,175,55,.4)" : "2px solid rgba(15,23,42,.15)", padding: 9, backdropFilter: "blur(10px)", position: "relative" }}>
+              <Image src="/neu-library-logo.png" alt="NEU" width={72} height={72} style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: "50%" }} />
+            </div>
+          </div>
+          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".28em", textTransform: "uppercase", color: theme.isDark ? "rgba(212,175,55,.6)" : "rgba(33,150,243,.7)", marginBottom: 8 }}>Need assistance?</p>
+          <h1 style={{ fontSize: 40, fontWeight: 900, color: theme.text, fontFamily: "'Playfair Display',serif", lineHeight: 1.1, marginBottom: 10 }}>Help Center</h1>
+          <p style={{ fontSize: 15, color: theme.textMuted, maxWidth: 480, margin: "0 auto" }}>
             Find answers to common questions, contact information, and troubleshooting guides.
           </p>
         </motion.div>
@@ -111,9 +181,9 @@ export default function HelpPage() {
                 flex: 1, minWidth: 120, height: 52, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                 border: "1px solid",
                 borderRadius: 12, fontSize: 14, fontWeight: 700, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", transition: "all .18s",
-                background: activeSection === key ? meta.bg : "rgba(255,255,255,.04)",
-                borderColor: activeSection === key ? meta.border : "rgba(255,255,255,.08)",
-                color: activeSection === key ? meta.color : "rgba(255,255,255,.45)",
+                background: activeSection === key ? meta.bg : theme.cardAlt,
+                borderColor: activeSection === key ? meta.border : theme.border,
+                color: activeSection === key ? meta.color : theme.textMuted,
               }}
             >
               <span>{meta.icon}</span>
@@ -140,7 +210,7 @@ export default function HelpPage() {
               {sectionItems.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "60px 20px" }}>
                   <p style={{ fontSize: 36, marginBottom: 12 }}>📭</p>
-                  <p style={{ fontSize: 16, color: "rgba(255,255,255,.4)", fontWeight: 600 }}>No content available yet</p>
+                  <p style={{ fontSize: 16, color: theme.textMuted, fontWeight: 600 }}>No content available yet</p>
                 </div>
               ) : sectionItems.map((item, i) => {
                 const meta = SECTION_META[item.section as Section];
@@ -149,7 +219,7 @@ export default function HelpPage() {
                   <motion.div
                     key={item.id}
                     custom={i} variants={fadeUp} initial="hidden" animate="visible"
-                    style={{ background: isOpen ? "rgba(255,255,255,.07)" : "rgba(255,255,255,.04)", border: `1px solid ${isOpen ? meta.border : "rgba(255,255,255,.07)"}`, borderLeft: `3px solid ${isOpen ? meta.color : "transparent"}`, borderRadius: 14, overflow: "hidden", transition: "border-color .2s, background .2s" }}
+                    style={{ background: isOpen ? theme.glass.background : theme.cardAlt, borderTop: `1px solid ${isOpen ? meta.border : theme.border}`, borderRight: `1px solid ${isOpen ? meta.border : theme.border}`, borderBottom: `1px solid ${isOpen ? meta.border : theme.border}`, borderLeft: `3px solid ${isOpen ? meta.color : "transparent"}`, borderRadius: 14, overflow: "hidden", transition: "border-color .2s, background .2s" }}
                   >
                     <button
                       onClick={() => setOpenItem(isOpen ? null : item.id)}
@@ -157,11 +227,11 @@ export default function HelpPage() {
                     >
                       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                         <div style={{ width: 36, height: 36, borderRadius: 10, background: meta.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{meta.icon}</div>
-                        <p style={{ fontSize: 15, fontWeight: 700, color: isOpen ? meta.color : "rgba(255,255,255,.85)" }}>{item.title}</p>
+                        <p style={{ fontSize: 15, fontWeight: 700, color: isOpen ? meta.color : theme.text }}>{item.title}</p>
                       </div>
                       <motion.span
                         animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: .2 }}
-                        style={{ fontSize: 14, color: "rgba(255,255,255,.35)", flexShrink: 0 }}
+                        style={{ fontSize: 14, color: theme.textFaint, flexShrink: 0 }}
                       >▾</motion.span>
                     </button>
 
@@ -173,7 +243,7 @@ export default function HelpPage() {
                           style={{ overflow: "hidden" }}
                         >
                           <div style={{ padding: "0 20px 18px 68px" }}>
-                            <p style={{ fontSize: 14, color: "rgba(255,255,255,.6)", lineHeight: 1.7 }}>{item.content}</p>
+                            <p style={{ fontSize: 14, color: theme.textMuted, lineHeight: 1.7 }}>{item.content}</p>
                           </div>
                         </motion.div>
                       )}
@@ -191,15 +261,57 @@ export default function HelpPage() {
           <p style={{ fontSize: 13, color: "rgba(212,175,55,.8)", fontWeight: 600, marginBottom: 4 }}>
             📍 NEU Library — In front of Faculty Parking Area
           </p>
-          <p style={{ fontSize: 12, color: "rgba(255,255,255,.4)" }}>
+          <p style={{ fontSize: 12, color: theme.textMuted }}>
             M/T/W/F: 7:00 AM – 7:00 PM &nbsp;·&nbsp; Th/Sat: 7:00 AM – 6:00 PM
+          </p>
+        </motion.div>
+
+        {/* QR Code Generation Section */}
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .6 }}
+          style={{ marginTop: 24, background: theme.cardAlt, border: theme.border, borderRadius: 14, padding: "24px", textAlign: "center" }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>📱</div>
+          <h3 style={{ fontSize: 18, fontWeight: 800, color: theme.text, marginBottom: 6 }}>Generate Your QR Code</h3>
+          <p style={{ fontSize: 14, color: theme.textMuted, marginBottom: 18, lineHeight: 1.6 }}>
+            Already have an account? Generate your personal QR code for quick library check-in.
+          </p>
+          {qrError && (
+            <div style={{ background: "rgba(248,113,113,.1)", border: "1px solid rgba(248,113,113,.25)", borderRadius: 10, padding: "10px 14px", marginBottom: 14 }}>
+              <p style={{ fontSize: 13, color: "#f87171", fontWeight: 600 }}>⚠️ {qrError}</p>
+            </div>
+          )}
+          <motion.button
+            whileHover={{ scale: 1.02 }} whileTap={{ scale: .97 }}
+            onClick={handleGenerateQR}
+            disabled={qrLoading}
+            style={{
+              padding: "14px 28px", background: "linear-gradient(135deg,#7a5800,#B8860B,#DAA520)",
+              border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 700,
+              fontFamily: "'DM Sans',sans-serif", cursor: qrLoading ? "not-allowed" : "pointer",
+              opacity: qrLoading ? .65 : 1, display: "inline-flex", alignItems: "center", gap: 8
+            }}>
+            {qrLoading ? (
+              <><svg style={{ width: 16, height: 16, animation: "spin .8s linear infinite" }} viewBox="0 0 24 24" fill="none"><circle style={{ opacity: .25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path style={{ opacity: .75 }} fill="currentColor" d="M4 12a8 8 0 018-8v8z" /></svg>Signing in…</>
+            ) : (
+              <>🔐 Sign in with Google to Generate</>
+            )}
+          </motion.button>
+          <p style={{ fontSize: 11, color: theme.textFaint, marginTop: 12 }}>
+            You&apos;ll be asked to sign in with your @neu.edu.ph account
           </p>
         </motion.div>
       </div>
 
       <style>{`
-        @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:.8} }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.7} }
+        @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
+
+      <QRCodeModal
+        isOpen={showQRModal}
+        onClose={() => setShowQRModal(false)}
+        studentId={qrStudentId}
+        studentName={qrStudentName}
+      />
     </div>
   );
 }

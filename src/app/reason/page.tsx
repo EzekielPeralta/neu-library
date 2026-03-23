@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabase";
 import Image from "next/image";
+import { useTheme, getThemeColors } from "@/app/lib/themeContext";
 
 const REASONS = [
   { label:"Studying",        desc:"Individual study or review sessions"  },
@@ -22,6 +23,8 @@ const R_CLR: Record<string,{color:string;bg:string}> = {
 
 export default function ReasonPage() {
   const router  = useRouter();
+  const { mode } = useTheme();
+  const theme = getThemeColors(mode === "dark");
   const [selected, setSelected] = useState("");
   const [loading,  setLoading]  = useState(false);
   const [student,  setStudent]  = useState<{name:string;student_id:string;college:string;photo_url?:string|null}|null>(null);
@@ -54,8 +57,8 @@ export default function ReasonPage() {
     <div style={{
       height:"100vh", overflow:"auto",
       fontFamily:"'DM Sans',sans-serif",
-      background:"linear-gradient(145deg,#060d1a 0%,#0d1f3e 40%,#162d55 70%,#0a1628 100%)",
-      display:"flex", flexDirection:"column", position:"relative", color:"#fff",
+      background: theme.isDark ? "linear-gradient(145deg,#060d1a 0%,#0d1f3e 40%,#162d55 70%,#0a1628 100%)" : theme.bgGradient,
+      display:"flex", flexDirection:"column", position:"relative", color:theme.text,
     }}>
 
       {/* bg decorations */}
@@ -118,32 +121,32 @@ export default function ReasonPage() {
             {/* greeting card */}
             <div style={{
               flex:1,
-              background:"linear-gradient(145deg,#080f1e,#0f2040,#162d55)",
-              border:"1px solid rgba(212,175,55,.18)",
+              background: theme.isDark ? "linear-gradient(145deg,#080f1e,#0f2040,#162d55)" : "linear-gradient(145deg,#ffffff,#f8fafc)",
+              border: theme.isDark ? "1px solid rgba(212,175,55,.18)" : "1px solid rgba(15,23,42,.1)",
               borderRadius:16, padding:"20px 18px",
               display:"flex", flexDirection:"column", justifyContent:"space-between",
-              position:"relative", overflow:"auto",
-              boxShadow:"0 14px 40px rgba(15,32,64,.4)",
+              position:"relative", overflow:"hidden",
+              boxShadow: theme.isDark ? "0 14px 40px rgba(15,32,64,.4)" : "0 14px 40px rgba(15,23,42,.08)",
             }}>
-              <div style={{ position:"absolute", top:-30, right:-30, width:110, height:110, borderRadius:"50%", background:"rgba(255,255,255,.03)" }} />
+              <div style={{ position:"absolute", top:-30, right:-30, width:110, height:110, borderRadius:"50%", background: theme.isDark ? "rgba(255,255,255,.03)" : "rgba(15,23,42,.02)" }} />
 
               <div style={{ position:"relative", zIndex:2 }}>
                 {/* step badge */}
                 <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:16 }}>
                   <span style={{ width:6, height:6, borderRadius:"50%", background:"#4ade80", display:"inline-block" }} />
-                  <span style={{ fontSize:10, fontWeight:700, letterSpacing:".18em", textTransform:"uppercase", color:"rgba(255,255,255,.45)" }}>Step 2 of 3</span>
+                  <span style={{ fontSize:10, fontWeight:700, letterSpacing:".18em", textTransform:"uppercase", color: theme.textFaint }}>Step 2 of 3</span>
                 </div>
 
-                {/* Student photo */}
-<div style={{width:110,height:110,borderRadius:"50%", overflow:"hidden", border:"2px solid rgba(212,175,55,.4)", marginBottom:16, background:"linear-gradient(135deg,#0f2040,#1E3A8A)", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:800, fontSize:26, boxShadow:"0 0 24px rgba(212,175,55,.15)" }}>
+                {/* Student photo - BIGGER */}
+<div style={{width:180,height:180,borderRadius:"50%", overflow:"hidden", border: theme.isDark ? "3px solid rgba(212,175,55,.5)" : "3px solid rgba(15,23,42,.15)", marginBottom:16, background: theme.isDark ? "linear-gradient(135deg,#0f2040,#1E3A8A)" : "linear-gradient(135deg,#e0f2fe,#bae6fd)", display:"flex", alignItems:"center", justifyContent:"center", color: theme.isDark ? "#fff" : "#0c4a6e", fontWeight:800, fontSize:42, boxShadow: theme.isDark ? "0 0 32px rgba(212,175,55,.2)" : "0 0 32px rgba(15,23,42,.08)" }}>
   {student?.photo_url
-    ? <Image src={student.photo_url} alt={firstName} width={72} height={72} style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:"50%"}}/>
+    ? <Image src={student.photo_url} alt={firstName} width={180} height={180} style={{width:"100%",height:"100%",objectFit:"cover"}} referrerPolicy="no-referrer"/>
     : firstName.charAt(0)
   }
 </div>
 
-                <p style={{ fontSize:10, fontWeight:700, letterSpacing:".22em", textTransform:"uppercase", color:"rgba(255,255,255,.3)", marginBottom:6 }}>Welcome back</p>
-                <h2 style={{ fontSize:28, fontWeight:900, color:"#fff", fontFamily:"'Playfair Display',serif", lineHeight:1.15, marginBottom:4 }}>
+                <p style={{ fontSize:10, fontWeight:700, letterSpacing:".22em", textTransform:"uppercase", color: theme.textFaint, marginBottom:6 }}>Welcome back</p>
+                <h2 style={{ fontSize:28, fontWeight:900, color: theme.text, fontFamily:"'Playfair Display',serif", lineHeight:1.15, marginBottom:4 }}>
                   Hello,<br/>
                   <span style={{
                     background:"linear-gradient(90deg,#B8860B,#DAA520,#FFD700,#DAA520,#B8860B)",
@@ -151,20 +154,20 @@ export default function ReasonPage() {
                     WebkitTextFillColor:"transparent", backgroundClip:"text",
                   }}>{firstName}!</span>
                 </h2>
-                <p style={{ fontSize:12, color:"rgba(255,255,255,.4)", lineHeight:1.6 }}>
+                <p style={{ fontSize:12, color: theme.textMuted, lineHeight:1.6 }}>
                   Select your purpose of visit to complete check-in.
                 </p>
               </div>
 
               <div style={{ position:"relative", zIndex:2 }}>
                 <div style={{ height:1, background:"linear-gradient(90deg,rgba(212,175,55,.35),transparent)", marginBottom:10 }} />
-                <p style={{ fontSize:11, color:"rgba(255,255,255,.28)", fontWeight:600 }}>{student?.college}</p>
+                <p style={{ fontSize:11, color: theme.textFaint, fontWeight:600 }}>{student?.college}</p>
               </div>
             </div>
 
             {/* progress */}
-            <div style={{ background:"rgba(255,255,255,.05)", border:"1px solid rgba(255,255,255,.08)", borderRadius:12, padding:"14px 16px" }}>
-              <p style={{ fontSize:10, fontWeight:700, letterSpacing:".18em", textTransform:"uppercase", color:"rgba(255,255,255,.28)", marginBottom:12 }}>Progress</p>
+            <div style={{ background: theme.cardAlt, border: theme.border, borderRadius:12, padding:"14px 16px" }}>
+              <p style={{ fontSize:10, fontWeight:700, letterSpacing:".18em", textTransform:"uppercase", color: theme.textFaint, marginBottom:12 }}>Progress</p>
               <div style={{ display:"flex", alignItems:"center" }}>
                 {[{n:1,t:"Sign In",done:true},{n:2,t:"Purpose",active:true},{n:3,t:"Welcome"}].map((s,i)=>(
                   <div key={s.n} style={{ display:"flex", alignItems:"center", flex:1 }}>

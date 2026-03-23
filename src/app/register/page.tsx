@@ -10,8 +10,10 @@ import { supabase } from "@/app/lib/supabase";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import CollegeSearchDropdown from "@/app/components/CollegeSearchDropdown";
+import QRCodeModal from "@/app/components/QRCodeModal";
 import type { College, Program } from "@/app/lib/types";
 import { STUDENT_ID_REGEX } from "@/app/lib/types";
+import { useTheme, getThemeColors } from "@/app/lib/themeContext";
 
 const BG_IMAGE = "/neu-library-bg.jpg";
 
@@ -30,6 +32,8 @@ const fadeUp = {
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { mode } = useTheme();
+  const theme = getThemeColors(mode === "dark");
   const [name,           setName]           = useState("");
   const [studentId,      setStudentId]      = useState("");
   const [idError,        setIdError]        = useState("");
@@ -43,6 +47,7 @@ export default function RegisterPage() {
   const [checkingSession, setCheckingSession] = useState(true);
   const [photoFile,    setPhotoFile]    = useState<File|null>(null);
   const [photoPreview, setPhotoPreview] = useState<string|null>(null);
+  const [showQRModal,  setShowQRModal]  = useState(false);
 
   useEffect(() => { checkSession(); }, []);
 
@@ -55,14 +60,27 @@ export default function RegisterPage() {
     if (existing) { router.push("/kiosk"); return; }
     setEmail(em);
     const googleName = session.user.user_metadata?.full_name || "";
+    const googlePhoto = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || "";
     if (googleName) setName(googleName);
+    if (googlePhoto) {
+      setPhotoPreview(googlePhoto);
+      // Fetch and convert Google photo to File object
+      try {
+        const response = await fetch(googlePhoto);
+        const blob = await response.blob();
+        const file = new File([blob], "google-photo.jpg", { type: "image/jpeg" });
+        setPhotoFile(file);
+      } catch (err) {
+        console.error("Failed to fetch Google photo:", err);
+      }
+    }
     setCheckingSession(false);
   };
 
   const validateId = (val: string) => {
     if (!val.trim()) { setIdError("Student ID is required."); return false; }
     if (!STUDENT_ID_REGEX.test(val.trim())) {
-      setIdError("Format must be xx-xxxxx-xxx (e.g. 24-11136-791) or 10 digits.");
+      setIdError("Format must be xx-xxxxx-xxx (e.g. 20-12345-678) or 10 digits.");
       return false;
     }
     setIdError("");
@@ -119,9 +137,8 @@ export default function RegisterPage() {
       await supabase.from("user_roles").insert({ email, role: "user" });
     } catch {}
 
-    document.cookie = `user_email=${email}; path=/; max-age=86400`;
-    document.cookie = `active_role=user; path=/; max-age=86400`;
-    router.push("/kiosk");
+    setLoading(false);
+    setShowQRModal(true);
   };
 
   if (checkingSession) {
@@ -144,18 +161,29 @@ export default function RegisterPage() {
       minHeight: "100vh", fontFamily: "'DM Sans',sans-serif",
       display: "flex", alignItems: "center", justifyContent: "center",
       padding: "24px", position: "relative", overflow: "hidden",
+      background: theme.bg,
     }}>
       {/* Background image */}
       <div style={{ position: "fixed", inset: 0, zIndex: 0 }}>
-        <Image src={BG_IMAGE} alt="" fill style={{ objectFit: "cover", objectPosition: "center" }} priority />
-        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(145deg,rgba(6,13,26,.96) 0%,rgba(13,31,62,.94) 40%,rgba(22,45,85,.92) 70%,rgba(10,22,40,.96) 100%)" }} />
+        {theme.isDark ? (
+          <>
+            <Image src={BG_IMAGE} alt="" fill style={{ objectFit: "cover", objectPosition: "center" }} priority />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(145deg,rgba(6,13,26,.96) 0%,rgba(13,31,62,.94) 40%,rgba(22,45,85,.92) 70%,rgba(10,22,40,.96) 100%)" }} />
+          </>
+        ) : (
+          <div style={{ position: "absolute", inset: 0, background: theme.bgGradient }} />
+        )}
       </div>
 
       {/* Decorations */}
-      <div style={{ position: "fixed", inset: 0, backgroundImage: "radial-gradient(circle at 2px 2px,rgba(255,255,255,.025) 1px,transparent 0)", backgroundSize: "28px 28px", pointerEvents: "none", zIndex: 1 }} />
-      <div style={{ position: "fixed", top: "-15%", left: "-10%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle,rgba(30,64,175,.2),transparent 68%)", filter: "blur(70px)", pointerEvents: "none", zIndex: 1 }} />
-      <div style={{ position: "fixed", bottom: "-15%", right: "-10%", width: 440, height: 440, borderRadius: "50%", background: "radial-gradient(circle,rgba(212,175,55,.1),transparent 68%)", filter: "blur(70px)", pointerEvents: "none", zIndex: 1 }} />
-      <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg,transparent,rgba(212,175,55,.7),transparent)", pointerEvents: "none", zIndex: 2 }} />
+      <div style={{ position: "fixed", inset: 0, backgroundImage: theme.isDark ? "radial-gradient(circle at 2px 2px,rgba(255,255,255,.025) 1px,transparent 0)" : "radial-gradient(circle at 2px 2px,rgba(15,23,42,.04) 1px,transparent 0)", backgroundSize: "28px 28px", pointerEvents: "none", zIndex: 1 }} />
+      {theme.isDark && (
+        <>
+          <div style={{ position: "fixed", top: "-15%", left: "-10%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle,rgba(30,64,175,.2),transparent 68%)", filter: "blur(70px)", pointerEvents: "none", zIndex: 1, animation: "pulse 4s ease-in-out infinite" }} />
+          <div style={{ position: "fixed", bottom: "-15%", right: "-10%", width: 440, height: 440, borderRadius: "50%", background: "radial-gradient(circle,rgba(212,175,55,.1),transparent 68%)", filter: "blur(70px)", pointerEvents: "none", zIndex: 1, animation: "pulse 5s ease-in-out infinite" }} />
+        </>
+      )}
+      <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 2, background: theme.isDark ? "linear-gradient(90deg,transparent,rgba(212,175,55,.7),transparent)" : "linear-gradient(90deg,transparent,rgba(15,23,42,.3),transparent)", pointerEvents: "none", zIndex: 2 }} />
 
       <motion.div
         initial={{ opacity: 0, y: 32 }}
@@ -166,20 +194,20 @@ export default function RegisterPage() {
         {/* Logo */}
         <motion.div custom={0} variants={fadeUp} initial="hidden" animate="visible" style={{ textAlign: "center", marginBottom: 28 }}>
           <div style={{ position: "relative", display: "inline-block", marginBottom: 16 }}>
-            <div style={{ position: "absolute", inset: -18, borderRadius: "50%", background: "radial-gradient(circle,rgba(212,175,55,.18),transparent 68%)", filter: "blur(16px)" }} />
-            <div style={{ width: 84, height: 84, borderRadius: "50%", background: "rgba(255,255,255,.07)", border: "2px solid rgba(212,175,55,.32)", padding: 10, position: "relative", boxShadow: "0 0 40px rgba(212,175,55,.12)" }}>
+            <div style={{ position: "absolute", inset: -18, borderRadius: "50%", background: theme.isDark ? "radial-gradient(circle,rgba(212,175,55,.18),transparent 68%)" : "radial-gradient(circle,rgba(15,23,42,.12),transparent 68%)", filter: "blur(16px)", animation: "pulse 3s ease-in-out infinite" }} />
+            <div style={{ width: 84, height: 84, borderRadius: "50%", background: theme.isDark ? "rgba(255,255,255,.07)" : "rgba(255,255,255,.9)", border: theme.isDark ? "2px solid rgba(212,175,55,.32)" : "2px solid rgba(15,23,42,.15)", padding: 10, position: "relative", boxShadow: theme.isDark ? "0 0 40px rgba(212,175,55,.12)" : "0 0 40px rgba(15,23,42,.08)" }}>
               <Image src="/neu-library-logo.png" alt="NEU" width={84} height={84} style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: "50%" }} />
             </div>
           </div>
-          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".32em", textTransform: "uppercase", color: "rgba(255,255,255,.35)", marginBottom: 6 }}>New Era University</p>
-          <h1 style={{ fontSize: 30, fontWeight: 900, color: "#fff", fontFamily: "'Playfair Display',serif", lineHeight: 1.15, marginBottom: 4 }}>Library Registration</h1>
-          <p style={{ fontSize: 14, color: "rgba(255,255,255,.45)" }}>Complete your profile to access the library</p>
+          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".32em", textTransform: "uppercase", color: theme.textFaint, marginBottom: 6 }}>New Era University</p>
+          <h1 style={{ fontSize: 30, fontWeight: 900, color: theme.text, fontFamily: "'Playfair Display',serif", lineHeight: 1.15, marginBottom: 4 }}>Library Registration</h1>
+          <p style={{ fontSize: 14, color: theme.textMuted }}>Complete your profile to access the library</p>
         </motion.div>
 
         {/* Glass card */}
         <motion.div
           custom={1} variants={fadeUp} initial="hidden" animate="visible"
-          style={{ background: "rgba(255,255,255,.09)", backdropFilter: "blur(28px)", WebkitBackdropFilter: "blur(28px)", border: "1px solid rgba(255,255,255,.15)", borderRadius: 24, padding: "32px 30px", boxShadow: "0 10px 50px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.12)" }}
+          style={{ background: theme.glass.background, backdropFilter: theme.glass.backdropFilter, WebkitBackdropFilter: theme.glass.backdropFilter, border: theme.glass.border, borderRadius: 24, padding: "32px 30px", boxShadow: theme.isDark ? "0 10px 50px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.12)" : "0 10px 50px rgba(15,23,42,.1), inset 0 1px 0 rgba(255,255,255,.5)" }}
         >
           {/* Verified email */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(74,222,128,.08)", border: "1px solid rgba(74,222,128,.2)", borderRadius: 12, padding: "12px 16px", marginBottom: 22 }}>
@@ -221,7 +249,7 @@ export default function RegisterPage() {
               <label style={{ display: "block", fontSize: 11, fontWeight: 700, letterSpacing: ".16em", textTransform: "uppercase", color: "rgba(255,255,255,.48)", marginBottom: 7 }}>Student / Employee ID</label>
               <div style={{ position: "relative" }}>
                 <span style={{ position: "absolute", left: 15, top: "50%", transform: "translateY(-50%)", fontSize: 16, pointerEvents: "none" }}>🎓</span>
-                <input type="text" placeholder="e.g. 24-11136-791" value={studentId}
+                <input type="text" placeholder="e.g. 20-12345-678" value={studentId}
                   onChange={e => { setStudentId(e.target.value); if (idError) validateId(e.target.value); }}
                   onBlur={e => validateId(e.target.value)}
                   required
@@ -230,7 +258,7 @@ export default function RegisterPage() {
                 />
               </div>
               {idError && <p style={{ fontSize: 11, color: "#f87171", marginTop: 5, fontWeight: 600 }}>⚠️ {idError}</p>}
-              <p style={{ fontSize: 11, color: "rgba(255,255,255,.28)", marginTop: 5 }}>Format: xx-xxxxx-xxx (e.g. 24-11136-791) or 10-digit number</p>
+              <p style={{ fontSize: 11, color: "rgba(255,255,255,.28)", marginTop: 5 }}>Format: xx-xxxxx-xxx (e.g. 20-12345-678) or 10-digit number</p>
             </motion.div>
 
             {/* Employee type */}
@@ -262,41 +290,34 @@ export default function RegisterPage() {
               />
             </motion.div>
 
-           {/* Photo upload */}
+           {/* Photo upload - LOCKED to Google photo */}
             <motion.div custom={6} variants={fadeUp} initial="hidden" animate="visible">
               <label style={{ display:"block", fontSize:11, fontWeight:700, letterSpacing:".16em", textTransform:"uppercase", color:"rgba(255,255,255,.48)", marginBottom:10 }}>
-                Profile Photo <span style={{ color:"rgba(255,255,255,.25)", fontWeight:400, textTransform:"none", letterSpacing:0 }}>(optional)</span>
+                Profile Photo <span style={{ color:"rgba(255,255,255,.25)", fontWeight:400, textTransform:"none", letterSpacing:0 }}>(from Google account)</span>
               </label>
               <div style={{ display:"flex", alignItems:"center", gap:16 }}>
                 {/* Preview */}
                 <div style={{ width:72, height:72, borderRadius:"50%", overflow:"hidden", border:"2px solid rgba(212,175,55,.35)", background:"linear-gradient(135deg,#0f2040,#1E3A8A)", display:"flex", alignItems:"center", justifyContent:"center", color:"rgba(255,255,255,.4)", fontSize:11, fontWeight:700, flexShrink:0, textAlign:"center" }}>
                   {photoPreview
-                    ? <Image src={photoPreview} alt="Preview" width={72} height={72} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                    ? <Image src={photoPreview} alt="Preview" width={72} height={72} style={{width:"100%",height:"100%",objectFit:"cover"}} referrerPolicy="no-referrer"/>
                     : <span style={{fontSize:24}}>👤</span>
                   }
                 </div>
-                {/* Buttons */}
-                <div style={{ display:"flex", flexDirection:"column", gap:8, flex:1 }}>
-                  <label style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 16px", background:"rgba(255,255,255,.07)", border:"1.5px solid rgba(255,255,255,.13)", borderRadius:10, cursor:"pointer", fontSize:13, fontWeight:600, color:"rgba(255,255,255,.7)", transition:"all .2s" }}
-                    onMouseEnter={e=>(e.currentTarget.style.background="rgba(255,255,255,.11)")}
-                    onMouseLeave={e=>(e.currentTarget.style.background="rgba(255,255,255,.07)")}>
-                    <span>📷</span> Upload Photo
-                    <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display:"none" }}
-                      onChange={e=>{
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        if (file.size > 5*1024*1024) { setError("Photo must be under 5MB."); return; }
-                        setPhotoFile(file);
-                        setPhotoPreview(URL.createObjectURL(file));
-                      }}/>
-                  </label>
-                  {photoPreview && (
-                    <button type="button" onClick={()=>{ setPhotoFile(null); setPhotoPreview(null); }}
-                      style={{ padding:"8px 16px", background:"rgba(248,113,113,.08)", border:"1px solid rgba(248,113,113,.2)", borderRadius:10, color:"#f87171", fontSize:12, fontWeight:700, fontFamily:"'DM Sans',sans-serif", cursor:"pointer" }}>
-                      ✕ Remove Photo
-                    </button>
+                {/* Info */}
+                <div style={{ flex:1 }}>
+                  {photoPreview ? (
+                    <div style={{ background:"rgba(74,222,128,.08)", border:"1px solid rgba(74,222,128,.2)", borderRadius:10, padding:"10px 14px" }}>
+                      <p style={{ fontSize:12, color:"#4ade80", fontWeight:600, display:"flex", alignItems:"center", gap:6 }}>
+                        <span>✓</span> Google photo loaded
+                      </p>
+                      <p style={{ fontSize:10, color:"rgba(255,255,255,.35)", marginTop:4 }}>This photo will be used for your library profile. Contact admin to change it later.</p>
+                    </div>
+                  ) : (
+                    <div style={{ background:"rgba(212,175,55,.08)", border:"1px solid rgba(212,175,55,.2)", borderRadius:10, padding:"10px 14px" }}>
+                      <p style={{ fontSize:12, color:"#DAA520", fontWeight:600 }}>No Google photo found</p>
+                      <p style={{ fontSize:10, color:"rgba(255,255,255,.35)", marginTop:4 }}>A default avatar will be used. Contact admin to add a photo later.</p>
+                    </div>
                   )}
-                  <p style={{ fontSize:10, color:"rgba(255,255,255,.25)", lineHeight:1.5 }}>JPG, PNG or WebP · Max 5MB</p>
                 </div>
               </div>
             </motion.div>
@@ -328,12 +349,25 @@ export default function RegisterPage() {
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.7} }
         input::placeholder { color: rgba(255,255,255,.28) !important; font-weight: 400; }
         option { background: #0d1f3e; color: #fff; }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: #060d1a; }
         ::-webkit-scrollbar-thumb { background: rgba(212,175,55,.3); border-radius: 2px; }
       `}</style>
+
+      <QRCodeModal
+        isOpen={showQRModal}
+        onClose={() => {
+          setShowQRModal(false);
+          document.cookie = `user_email=${email}; path=/; max-age=86400`;
+          document.cookie = `active_role=user; path=/; max-age=86400`;
+          router.push("/kiosk");
+        }}
+        studentId={studentId.trim()}
+        studentName={name.trim()}
+      />
     </div>
   );
 }

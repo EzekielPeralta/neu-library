@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import PageTransition from "@/app/components/PageTransition";
+import { ThemeProvider } from "@/app/lib/themeContext";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -30,9 +31,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body>
-        <PageTransition>
-          {children}
-        </PageTransition>
+        <ThemeProvider>
+          <PageTransition>
+            {children}
+          </PageTransition>
+        </ThemeProvider>
       </body>
     </html>
   );

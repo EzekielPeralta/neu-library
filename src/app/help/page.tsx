@@ -77,45 +77,36 @@ export default function HelpPage() {
     setQrError("");
     
     try {
-      // Check if already logged in
       const { data: { session } } = await supabase.auth.getSession();
-      console.log("[QR Gen] Session check:", session?.user?.email);
       
       if (session?.user) {
         const email = session.user.email || "";
-        console.log("[QR Gen] User email:", email);
         
         if (email.endsWith("@neu.edu.ph")) {
-          const { data: student, error: studentError } = await supabase
+          const { data: student } = await supabase
             .from("students")
             .select("student_id, name")
             .eq("email", email)
             .single();
-          
-          console.log("[QR Gen] Student query result:", { student, studentError });
           
           if (student) {
             setQrStudentId(student.student_id);
             setQrStudentName(student.name);
             setShowQRModal(true);
             setQrLoading(false);
-            console.log("[QR Gen] Showing modal - DONE");
             return;
           } else {
             setQrError("No account found. Please register first.");
             setQrLoading(false);
-            console.log("[QR Gen] No student record found");
             return;
           }
         } else {
           setQrError("Please use your @neu.edu.ph email.");
           setQrLoading(false);
-          console.log("[QR Gen] Email doesn't end with @neu.edu.ph");
           return;
         }
       }
       
-      console.log("[QR Gen] Not logged in, triggering OAuth");
       // Not logged in, trigger OAuth
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -129,7 +120,7 @@ export default function HelpPage() {
         setQrLoading(false);
       }
     } catch (err) {
-      console.error("[QR Gen] Error:", err);
+      console.error("QR Generation Error:", err);
       setQrError("An error occurred. Please try again.");
       setQrLoading(false);
     }

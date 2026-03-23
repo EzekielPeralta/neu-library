@@ -143,25 +143,19 @@ export default function KioskPage() {
       const skipIntro = sessionStorage.getItem('skip_kiosk_intro');
       const timestamp = sessionStorage.getItem('skip_intro_timestamp');
       
-      console.log('Initial showIntro check - skip_kiosk_intro flag:', skipIntro, 'timestamp:', timestamp);
-      
       if (skipIntro === 'true' && timestamp) {
         const age = Date.now() - parseInt(timestamp);
         const oneMinute = 60 * 1000;
         if (age < oneMinute) {
-          console.log('Valid recent skip flag, will skip intro');
           return false; // Skip intro
         } else {
-          console.log('Skip flag is stale (older than 1 minute), clearing and showing intro');
           sessionStorage.removeItem('skip_kiosk_intro');
           sessionStorage.removeItem('skip_intro_timestamp');
           return true; // Show intro
         }
       }
       
-      const shouldShowIntro = skipIntro !== 'true';
-      console.log('Will show intro:', shouldShowIntro);
-      return shouldShowIntro;
+      return skipIntro !== 'true';
     }
     return true; // Default to showing intro
   });
@@ -309,17 +303,12 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
   };
 
   const startQR=async()=>{
-    console.log('startQR called, qrStarted.current:', qrStarted.current);
-    if(qrStarted.current) {
-      console.log('QR already started, aborting');
-      return;
-    }
+    if(qrStarted.current) return;
     
     await new Promise(r=>setTimeout(r,350));
     
-    // CRITICAL FIX: Stop any existing scanner first
+    // Stop any existing scanner first
     if(scannerRef.current){
-      console.log('Stopping existing scanner');
       try{
         const o=scannerRef.current as{stop:()=>Promise<void>;clear:()=>void;isScanning?:boolean};
         if(o.isScanning){await o.stop();}
@@ -330,18 +319,13 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
     
     // Clear DOM to prevent double camera
     const existing=document.getElementById("qr-reader-kiosk");
-    if(existing){
-      console.log('Clearing existing DOM');
-      existing.innerHTML="";
-    }
+    if(existing)existing.innerHTML="";
     
     try{
-      console.log('Creating new Html5Qrcode instance');
       const{Html5Qrcode}=await import("html5-qrcode");
       const qr=new Html5Qrcode("qr-reader-kiosk");
       scannerRef.current=qr as unknown;
       
-      console.log('Starting QR scanner');
       await qr.start(
         {facingMode:"environment"},
         {fps:10,qrbox:{width:220,height:220}},
@@ -363,7 +347,6 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
       );
       setCamReady(true);
       setStatus("scanning");
-      console.log('QR scanner started successfully');
     }catch(err){
       console.error('QR scanner error:', err);
       setStatus("error");
@@ -489,7 +472,6 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
         // Clear flag and timestamp after natural intro completion (fresh start)
         sessionStorage.removeItem('skip_kiosk_intro');
         sessionStorage.removeItem('skip_intro_timestamp');
-        console.log('Intro completed naturally, cleared skip flag and timestamp');
       }} />}
       
       <div className="kiosk-layout"

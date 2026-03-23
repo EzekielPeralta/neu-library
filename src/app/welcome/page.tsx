@@ -56,7 +56,10 @@ export default function WelcomePage() {
         setCountdown(count);
         if (count <= 0) {
           clearInterval(countId);
+          // Preserve skip_kiosk_intro flag before clearing
+          const skipIntro = sessionStorage.getItem('skip_kiosk_intro');
           sessionStorage.clear();
+          if (skipIntro) sessionStorage.setItem('skip_kiosk_intro', skipIntro);
           router.push("/kiosk");
         }
       }, 1000);
@@ -71,8 +74,16 @@ export default function WelcomePage() {
   const firstName = student?.name.split(" ")[0] ?? "";
 
   const handleDone = () => {
-    sessionStorage.clear();
-    router.push(isKiosk ? "/kiosk" : "/dashboard");
+    if (isKiosk) {
+      // Preserve skip_kiosk_intro flag before clearing
+      const skipIntro = sessionStorage.getItem('skip_kiosk_intro');
+      sessionStorage.clear();
+      if (skipIntro) sessionStorage.setItem('skip_kiosk_intro', skipIntro);
+      router.push("/kiosk");
+    } else {
+      sessionStorage.clear();
+      router.push("/dashboard");
+    }
   };
 
   /* ─────────────────────────────────────────────────────────

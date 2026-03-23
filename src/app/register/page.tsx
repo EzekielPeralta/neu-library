@@ -361,9 +361,10 @@ export default function RegisterPage() {
         isOpen={showQRModal}
         onClose={() => {
           setShowQRModal(false);
-          document.cookie = `user_email=${email}; path=/; max-age=86400`;
-          document.cookie = `active_role=user; path=/; max-age=86400`;
-          router.push("/kiosk");
+          // Sign out and redirect to kiosk - user needs to check in manually
+          supabase.auth.signOut().then(() => {
+            router.push("/kiosk");
+          });
         }}
         studentId={studentId.trim()}
         studentName={name.trim()}

@@ -42,6 +42,7 @@ export default function HelpPage() {
   const { mode } = useTheme();
   const theme = getThemeColors(mode === "dark");
   const { playSound } = useSound();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [items,       setItems]       = useState<HelpContent[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [activeSection, setActiveSection] = useState<Section>("faq");
@@ -53,6 +54,11 @@ export default function HelpPage() {
   const [qrStudentName, setQrStudentName] = useState("");
 
   useEffect(() => {
+    // Check if user is logged in
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsLoggedIn(!!session?.user);
+    });
+    
     supabase
       .from("help_content")
       .select("*")
@@ -365,13 +371,15 @@ export default function HelpPage() {
               opacity: qrLoading ? .65 : 1, display: "inline-flex", alignItems: "center", gap: 8
             }}>
             {qrLoading ? (
-              <><svg style={{ width: 16, height: 16, animation: "spin .8s linear infinite" }} viewBox="0 0 24 24" fill="none"><circle style={{ opacity: .25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path style={{ opacity: .75 }} fill="currentColor" d="M4 12a8 8 0 018-8v8z" /></svg>Signing in…</>
+              <><svg style={{ width: 16, height: 16, animation: "spin .8s linear infinite" }} viewBox="0 0 24 24" fill="none"><circle style={{ opacity: .25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path style={{ opacity: .75 }} fill="currentColor" d="M4 12a8 8 0 018-8v8z" /></svg>Loading…</>
+            ) : isLoggedIn ? (
+              <>📱 Get My QR Code</>
             ) : (
               <>🔐 Sign in with Google to Generate</>
             )}
           </motion.button>
           <p style={{ fontSize: 11, color: theme.textFaint, marginTop: 12 }}>
-            You&apos;ll be asked to sign in with your @neu.edu.ph account
+            {isLoggedIn ? "Click to view and download your QR code" : "You'll be asked to sign in with your @neu.edu.ph account"}
           </p>
         </motion.div>
       </div>

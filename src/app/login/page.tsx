@@ -9,7 +9,7 @@ export default function LoginPage() {
     const isQRFlow = sessionStorage.getItem('qr_generation_flow') === 'true';
     
     if (isQRFlow) {
-      sessionStorage.removeItem('qr_generation_flow');
+      // Don't remove flag here - let help page handle it after QR is shown
       router.replace("/help?qr=generate");
     } else {
       router.replace("/kiosk");

@@ -145,9 +145,9 @@ export default function KioskPage() {
     const skipIntro = sessionStorage.getItem('skip_kiosk_intro');
     console.log('Kiosk mount - skip_kiosk_intro flag:', skipIntro);
     if (skipIntro) {
-      console.log('Skipping intro, removing flag');
+      console.log('Skipping intro');
       setShowIntro(false);
-      sessionStorage.removeItem('skip_kiosk_intro');
+      // DON'T remove flag yet - keep it until user returns to kiosk idle state
     } else {
       console.log('No skip flag found, showing intro');
     }
@@ -226,6 +226,9 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
   };
 
   const processCheckIn=async(student:KioskStudent)=>{
+    // Clear skip intro flag since user is now actively using kiosk
+    sessionStorage.removeItem('skip_kiosk_intro');
+    
     setStatus("processing");setMessage("Processing…");
     const{data:ls}=await supabase.from("library_status").select("is_open").eq("id",1).single();
     if(!ls?.is_open){setShowClosed(true);setStatus("idle");setMessage("Scan QR or sign in with Google");await supabase.auth.signOut();return;}

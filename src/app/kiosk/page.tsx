@@ -441,7 +441,12 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
   return (
     <>
       {/* Animated Intro */}
-      {showIntro && <KioskIntro onComplete={() => setShowIntro(false)} />}
+      {showIntro && <KioskIntro onComplete={() => {
+        setShowIntro(false);
+        // Clear flag after natural intro completion (fresh start)
+        sessionStorage.removeItem('skip_kiosk_intro');
+        console.log('Intro completed naturally, cleared skip flag');
+      }} />}
       
       <div className="kiosk-layout"
       style={{height:"100vh",overflow:"auto",fontFamily:"'DM Sans',sans-serif",display:"flex",position:"relative",background:theme.bg}}>

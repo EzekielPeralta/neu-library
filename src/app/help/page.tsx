@@ -69,6 +69,32 @@ export default function HelpPage() {
   const handleGenerateQR = async () => {
     setQrLoading(true);
     setQrError("");
+    
+    // Check if already logged in
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const email = session.user.email || "";
+      if (email.endsWith("@neu.edu.ph")) {
+        const { data: student } = await supabase
+          .from("students")
+          .select("student_id, name")
+          .eq("email", email)
+          .single();
+        if (student) {
+          setQrStudentId(student.student_id);
+          setQrStudentName(student.name);
+          setShowQRModal(true);
+          setQrLoading(false);
+          return;
+        } else {
+          setQrError("No account found. Please register first.");
+          setQrLoading(false);
+          return;
+        }
+      }
+    }
+    
+    // Not logged in, trigger OAuth
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {

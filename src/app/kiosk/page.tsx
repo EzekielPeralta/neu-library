@@ -6,6 +6,8 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import type { LibrarySchedule, KioskStudent } from "@/app/lib/types";
 import { useTheme, getThemeColors } from "@/app/lib/themeContext";
+import { useSound } from "@/app/lib/soundContext";
+import KioskIntro from "@/app/components/KioskIntro";
 
 type Tab    = "qr" | "manual";
 type Status = "idle" | "scanning" | "processing" | "error" | "success";
@@ -111,6 +113,7 @@ export default function KioskPage() {
   const router = useRouter();
   const { mode } = useTheme();
   const theme = getThemeColors(mode === "dark");
+  const { playSound } = useSound();
   const [tab,             setTab]             = useState<Tab>("qr");
   const [status,          setStatus]          = useState<Status>("idle");
   const [message,         setMessage]         = useState("Scan QR or sign in with Google");
@@ -133,10 +136,18 @@ export default function KioskPage() {
   const [scheduleNote,    setScheduleNote]    = useState<string|null>(null);
   const [showClosed,      setShowClosed]      = useState(false);
   const [quoteIndex,      setQuoteIndex]      = useState(0);
+  const [showIntro,       setShowIntro]       = useState(true); // Show by default
   const scannerRef = useRef<unknown>(null);
   const qrStarted  = useRef(false);
 
   useEffect(()=>{
+    // Check if intro should be skipped (coming from another page)
+    const skipIntro = sessionStorage.getItem('skip_kiosk_intro');
+    if (skipIntro) {
+      setShowIntro(false);
+      sessionStorage.removeItem('skip_kiosk_intro');
+    }
+    
     const tick=()=>{
       setClock(new Date().toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:true}));
       setDate(new Date().toLocaleDateString("en-PH",{weekday:"long",month:"long",day:"numeric",year:"numeric"}));
@@ -215,7 +226,10 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
     const{data:ls}=await supabase.from("library_status").select("is_open").eq("id",1).single();
     if(!ls?.is_open){setShowClosed(true);setStatus("idle");setMessage("Scan QR or sign in with Google");await supabase.auth.signOut();return;}
     const{data:sc}=await supabase.from("students").select("is_blocked").eq("student_id",student.student_id).single();
-    if(sc?.is_blocked){setStatus("error");setMessage("Your access has been restricted. Please contact the library admin.");setTimeout(()=>{setStatus("idle");setMessage("Scan QR or sign in with Google");qrStarted.current=false;startQR();},5000);return;}
+    if(sc?.is_blocked){
+      playSound("error");
+      setStatus("error");setMessage("Your access has been restricted. Please contact the library admin.");setTimeout(()=>{setStatus("idle");setMessage("Scan QR or sign in with Google");qrStarted.current=false;startQR();},5000);return;
+    }
     const today=new Date().toISOString().split("T")[0];
     const nowTime=new Date().toTimeString().split(" ")[0];
     // Check for existing visit
@@ -223,12 +237,14 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
     if(ex){
       // Time out existing visit
       await supabase.from("library_visits").update({time_out:nowTime,visit_status:"completed"}).eq("visit_id",ex.visit_id);
+      playSound("checkout");
       setResultFlow("timeout");setResultStudent(student);
       setResultTime(new Date().toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit",hour12:true}));
       setStatus("success");setShowResult(true);await supabase.auth.signOut();
       setTimeout(()=>{setShowResult(false);setStatus("idle");setMessage("Scan QR or sign in with Google");qrStarted.current=false;startQR();},5000);
     }else{
       // New check-in - redirect to reason page
+      playSound("checkin");
       sessionStorage.setItem("student",JSON.stringify(student));
       sessionStorage.setItem("kiosk_mode","true");
       setStatus("success");
@@ -240,7 +256,10 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
 
   const handleQRSuccess=async(studentId:string)=>{
    const{data:st,error}=await supabase.from("students").select("*,photo_url, programs(name,colleges(code,name))").eq("student_id",studentId).single();
-    if(error||!st){setStatus("error");setMessage("Student not found — please try again");setTimeout(()=>{setStatus("idle");setMessage("Scan QR or sign in with Google");qrStarted.current=false;startQR();},10000);return;}
+    if(error||!st){
+      playSound("error");
+      setStatus("error");setMessage("Student not found — please try again");setTimeout(()=>{setStatus("idle");setMessage("Scan QR or sign in with Google");qrStarted.current=false;startQR();},10000);return;
+    }
     await processCheckIn(buildKioskStudent(st as Record<string,unknown>));
   };
 
@@ -248,7 +267,10 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
     e.preventDefault();if(!manualId.trim())return;
     setManualLoading(true);setManualErr("");
    const{data:st,error}=await supabase.from("students").select("*,photo_url, programs(name,colleges(code,name))").eq("student_id",manualId.trim()).single();
-    if(error||!st){setManualErr("Student ID not found. Please check and try again.");setManualLoading(false);return;}
+    if(error||!st){
+      playSound("error");
+      setManualErr("Student ID not found. Please check and try again.");setManualLoading(false);return;
+    }
     await processCheckIn(buildKioskStudent(st as Record<string,unknown>));setManualLoading(false);
   };
 
@@ -385,7 +407,15 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
 
   // ══ MAIN KIOSK ══
   return (
-    <div className="kiosk-layout"
+    <>
+      {/* Animated Intro */}
+      {showIntro && <KioskIntro onComplete={() => {
+        setShowIntro(false);
+        // Set flag so intro doesn't repeat when navigating back from other pages
+        sessionStorage.setItem('skip_kiosk_intro', 'true');
+      }} />}
+      
+      <div className="kiosk-layout"
       style={{height:"100vh",overflow:"auto",fontFamily:"'DM Sans',sans-serif",display:"flex",position:"relative",background:theme.bg}}>
 
       {/* ── FULL BACKGROUND PHOTO ── */}
@@ -620,5 +650,6 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
         }
       `}</style>
     </div>
+    </>
   );
 }

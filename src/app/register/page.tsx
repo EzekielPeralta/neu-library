@@ -64,10 +64,12 @@ export default function RegisterPage() {
     const googlePhoto = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || "";
     if (googleName) setName(googleName);
     if (googlePhoto) {
-      setPhotoPreview(googlePhoto);
-      // Fetch and convert Google photo to File object
+      // Get high-quality photo URL (remove size parameter if present)
+      const highQualityPhoto = googlePhoto.replace(/=s\d+-c/, '=s400-c'); // Request 400px version
+      setPhotoPreview(highQualityPhoto);
+      // Fetch and convert Google photo to File object with high quality
       try {
-        const response = await fetch(googlePhoto);
+        const response = await fetch(highQualityPhoto);
         const blob = await response.blob();
         const file = new File([blob], "google-photo.jpg", { type: "image/jpeg" });
         setPhotoFile(file);

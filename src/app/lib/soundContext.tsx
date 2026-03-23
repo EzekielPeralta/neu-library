@@ -1,0 +1,138 @@
+"use client";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+
+type SoundType = "intro" | "checkin" | "checkout" | "error" | "success" | "click";
+
+interface SoundContextType {
+  isMuted: boolean;
+  toggleMute: () => void;
+  playSound: (type: SoundType) => void;
+}
+
+const SoundContext = createContext<SoundContextType | undefined>(undefined);
+
+export function SoundProvider({ children }: { children: ReactNode }) {
+  const [isMuted, setIsMuted] = useState(false);
+  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+
+  useEffect(() => {
+    const savedMute = localStorage.getItem("neu_sound_muted");
+    if (savedMute === "true") setIsMuted(true);
+    
+    // Initialize AudioContext
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    setAudioContext(ctx);
+    
+    return () => {
+      ctx.close();
+    };
+  }, []);
+
+  const toggleMute = () => {
+    const newMuted = !isMuted;
+    setIsMuted(newMuted);
+    localStorage.setItem("neu_sound_muted", String(newMuted));
+  };
+
+  const playSound = async (type: SoundType) => {
+    if (isMuted || !audioContext) return;
+    
+    try {
+      if (audioContext.state === "suspended") {
+        await audioContext.resume();
+      }
+      
+      if (type === "intro") {
+        // Elegant chord progression: C5 -> E5 -> G5 (C major arpeggio)
+        const notes = [
+          { freq: 523.25, start: 0, duration: 0.5 },      // C5
+          { freq: 659.25, start: 0.25, duration: 0.5 },   // E5
+          { freq: 783.99, start: 0.5, duration: 0.7 }     // G5
+        ];
+        
+        notes.forEach(note => {
+          const osc = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+          
+          osc.connect(gain);
+          gain.connect(audioContext.destination);
+          
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(note.freq, audioContext.currentTime + note.start);
+          
+          gain.gain.setValueAtTime(0, audioContext.currentTime + note.start);
+          gain.gain.linearRampToValueAtTime(0.55, audioContext.currentTime + note.start + 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + note.start + note.duration);
+          
+          osc.start(audioContext.currentTime + note.start);
+          osc.stop(audioContext.currentTime + note.start + note.duration);
+        });
+        return;
+      }
+      
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      let frequency = 440;
+      let duration = 0.2;
+      let volume = 0.3;
+      
+      switch (type) {
+        case "checkin":
+          frequency = 659.25;
+          duration = 0.2;
+          volume = 0.6;
+          break;
+        case "checkout":
+          frequency = 523.25;
+          duration = 0.2;
+          volume = 0.6;
+          break;
+        case "error":
+          frequency = 329.63;
+          duration = 0.35;
+          volume = 0.5;
+          break;
+        case "success":
+          frequency = 783.99;
+          duration = 0.25;
+          volume = 0.6;
+          break;
+        case "click":
+          frequency = 800;
+          duration = 0.08;
+          volume = 0.45;
+          break;
+      }
+      
+      oscillator.type = type === "error" ? "square" : "sine";
+      oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+      
+      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+      gainNode.gain.linearRampToValueAtTime(volume, audioContext.currentTime + 0.01);
+      gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + duration);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + duration);
+    } catch (error) {
+      console.error("Sound playback failed:", error);
+    }
+  };
+
+  return (
+    <SoundContext.Provider value={{ isMuted, toggleMute, playSound }}>
+      {children}
+    </SoundContext.Provider>
+  );
+}
+
+export function useSound() {
+  const context = useContext(SoundContext);
+  if (!context) {
+    throw new Error("useSound must be used within SoundProvider");
+  }
+  return context;
+}

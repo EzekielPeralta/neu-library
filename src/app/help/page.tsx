@@ -10,9 +10,10 @@ import { supabase } from "@/app/lib/supabase";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import QRCodeModal from "@/app/components/QRCodeModal";
-import ThemeToggle from "@/app/components/ThemeToggle";
+import ThemeSoundToggle from "@/app/components/ThemeSoundToggle";
 import type { HelpContent } from "@/app/lib/types";
 import { useTheme, getThemeColors } from "@/app/lib/themeContext";
+import { useSound } from "@/app/lib/soundContext";
 
 const BG_IMAGE = "/neu-library-bg.jpg";
 
@@ -40,6 +41,7 @@ export default function HelpPage() {
   const router = useRouter();
   const { mode } = useTheme();
   const theme = getThemeColors(mode === "dark");
+  const { playSound } = useSound();
   const [items,       setItems]       = useState<HelpContent[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [activeSection, setActiveSection] = useState<Section>("faq");
@@ -141,7 +143,7 @@ export default function HelpPage() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <ThemeToggle />
+          <ThemeSoundToggle />
           <motion.button
             whileHover={{ scale: 1.02 }} whileTap={{ scale: .97 }}
             onClick={() => router.push("/kiosk")}
@@ -263,6 +265,53 @@ export default function HelpPage() {
           </p>
           <p style={{ fontSize: 12, color: theme.textMuted }}>
             M/T/W/F: 7:00 AM – 7:00 PM &nbsp;·&nbsp; Th/Sat: 7:00 AM – 6:00 PM
+          </p>
+        </motion.div>
+
+        {/* Sound Test Section */}
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .55 }}
+          style={{ marginTop: 24, background: theme.cardAlt, border: theme.border, borderRadius: 14, padding: "24px", textAlign: "center" }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>🔊</div>
+          <h3 style={{ fontSize: 18, fontWeight: 800, color: theme.text, marginBottom: 6 }}>Test Sound Effects</h3>
+          <p style={{ fontSize: 14, color: theme.textMuted, marginBottom: 18, lineHeight: 1.6 }}>
+            Click the buttons below to test different sound effects used in the system.
+          </p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "center" }}>
+            {[
+              { type: "intro" as const, label: "Intro", emoji: "🎵" },
+              { type: "checkin" as const, label: "Check-in", emoji: "✅" },
+              { type: "checkout" as const, label: "Check-out", emoji: "👋" },
+              { type: "error" as const, label: "Error", emoji: "❌" },
+              { type: "success" as const, label: "Success", emoji: "🎯" },
+              { type: "click" as const, label: "Click", emoji: "🖱️" },
+            ].map((sound) => (
+              <motion.button
+                key={sound.type}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => playSound(sound.type)}
+                style={{
+                  padding: "12px 20px",
+                  background: theme.glass.background,
+                  border: theme.glass.border,
+                  borderRadius: 10,
+                  color: theme.text,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  fontFamily: "'DM Sans',sans-serif",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <span>{sound.emoji}</span>
+                <span>{sound.label}</span>
+              </motion.button>
+            ))}
+          </div>
+          <p style={{ fontSize: 11, color: theme.textFaint, marginTop: 14 }}>
+            Make sure your device volume is on and the mute button (🔊) is not active
           </p>
         </motion.div>
 

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import PageTransition from "@/app/components/PageTransition";
 import { ThemeProvider } from "@/app/lib/themeContext";
+import { SoundProvider } from "@/app/lib/soundContext";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -36,9 +37,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <ThemeProvider>
-          <PageTransition>
-            {children}
-          </PageTransition>
+          <SoundProvider>
+            <PageTransition>
+              {children}
+            </PageTransition>
+          </SoundProvider>
         </ThemeProvider>
       </body>
     </html>

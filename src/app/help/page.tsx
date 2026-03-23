@@ -78,28 +78,38 @@ export default function HelpPage() {
     
     // Check if already logged in
     const { data: { session } } = await supabase.auth.getSession();
+    console.log("[QR Gen] Session check:", session?.user?.email);
+    
     if (session?.user) {
       const email = session.user.email || "";
+      console.log("[QR Gen] User email:", email);
+      
       if (email.endsWith("@neu.edu.ph")) {
         const { data: student } = await supabase
           .from("students")
           .select("student_id, name")
           .eq("email", email)
           .single();
+        
+        console.log("[QR Gen] Student found:", student);
+        
         if (student) {
           setQrStudentId(student.student_id);
           setQrStudentName(student.name);
           setShowQRModal(true);
           setQrLoading(false);
+          console.log("[QR Gen] Showing modal - DONE");
           return;
         } else {
           setQrError("No account found. Please register first.");
           setQrLoading(false);
+          console.log("[QR Gen] No student record found");
           return;
         }
       }
     }
     
+    console.log("[QR Gen] Not logged in, triggering OAuth");
     // Not logged in, trigger OAuth
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",

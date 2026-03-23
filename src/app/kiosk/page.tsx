@@ -141,8 +141,9 @@ export default function KioskPage() {
     if (typeof window !== 'undefined') {
       const skipIntro = sessionStorage.getItem('skip_kiosk_intro');
       console.log('Initial showIntro check - skip_kiosk_intro flag:', skipIntro);
-      console.log('Will show intro:', !skipIntro);
-      return !skipIntro; // Show intro if NO flag exists (null/undefined = falsy = !falsy = true)
+      const shouldShowIntro = skipIntro !== 'true'; // Only skip if flag is explicitly 'true'
+      console.log('Will show intro:', shouldShowIntro);
+      return shouldShowIntro;
     }
     return true; // Default to showing intro
   });

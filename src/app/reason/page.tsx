@@ -60,6 +60,9 @@ export default function ReasonPage() {
       return;
     }
     
+    // Set flag to skip intro when returning to kiosk
+    sessionStorage.setItem('skip_kiosk_intro', 'true');
+    
     router.push("/welcome");
   };
 

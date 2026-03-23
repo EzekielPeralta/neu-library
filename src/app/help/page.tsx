@@ -54,10 +54,13 @@ export default function HelpPage() {
   const [qrStudentName, setQrStudentName] = useState("");
 
   useEffect(() => {
-    // Check if user is logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Check if user is logged in - force refresh to get latest session
+    const checkSession = async () => {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      console.log('Help page session check:', { email: session?.user?.email, error });
       setIsLoggedIn(!!session?.user);
-    });
+    };
+    checkSession();
     
     supabase
       .from("help_content")

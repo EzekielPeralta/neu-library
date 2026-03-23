@@ -434,11 +434,7 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
   return (
     <>
       {/* Animated Intro */}
-      {showIntro && <KioskIntro onComplete={() => {
-        setShowIntro(false);
-        // Set flag so intro doesn't repeat when navigating back from other pages
-        sessionStorage.setItem('skip_kiosk_intro', 'true');
-      }} />}
+      {showIntro && <KioskIntro onComplete={() => setShowIntro(false)} />}
       
       <div className="kiosk-layout"
       style={{height:"100vh",overflow:"auto",fontFamily:"'DM Sans',sans-serif",display:"flex",position:"relative",background:theme.bg}}>

@@ -183,13 +183,12 @@ export default function KioskPage() {
     let cancelled=false;
     if(tab==="qr" && !showIntro){
       const el=document.getElementById("qr-reader-kiosk");
-      if(el&&el.childElementCount>0)return; // already mounted
-      if(qrStarted.current)return; // already started
-      qrStarted.current=false;
+      if(el&&el.childElementCount>0)return;
+      if(qrStarted.current)return;
       const run=async()=>{
-        await new Promise(r=>setTimeout(r,400));
-        if(cancelled)return;
-        if(!qrStarted.current){qrStarted.current=true;startQR();}
+        await new Promise(r=>setTimeout(r,200));
+        if(cancelled||qrStarted.current)return;
+        startQR();
       };
       run();
     } else {
@@ -304,8 +303,7 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
 
   const startQR=async()=>{
     if(qrStarted.current) return;
-    
-    await new Promise(r=>setTimeout(r,350));
+    qrStarted.current=true;
     
     // Stop any existing scanner first
     if(scannerRef.current){

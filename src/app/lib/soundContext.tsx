@@ -138,12 +138,12 @@ export function SoundProvider({ children }: { children: ReactNode }) {
         case "checkin":
           frequency = 659.25;
           duration = 0.2;
-          volume = 0.6;
+          volume = 0.8;
           break;
         case "checkout":
           frequency = 523.25;
           duration = 0.2;
-          volume = 0.6;
+          volume = 0.8;
           break;
         case "error":
           frequency = 329.63;
@@ -153,12 +153,12 @@ export function SoundProvider({ children }: { children: ReactNode }) {
         case "success":
           frequency = 783.99;
           duration = 0.25;
-          volume = 0.6;
+          volume = 0.8;
           break;
         case "click":
           frequency = 800;
           duration = 0.08;
-          volume = 0.45;
+          volume = 0.7;
           break;
       }
       

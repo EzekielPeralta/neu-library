@@ -32,7 +32,7 @@ export default function KioskIntro({ onComplete }: KioskIntroProps) {
       clearTimeout(timer3);
       clearTimeout(timer4);
     };
-  }, []); // Remove onComplete from dependencies to prevent re-running
+  }, [playSound, onComplete]);
 
   return (
     <motion.div

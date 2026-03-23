@@ -276,7 +276,8 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
 
   const startQR=async()=>{
     await new Promise(r=>setTimeout(r,350));
-    // CRITICAL FIX: Always stop and clear any existing scanner first
+    
+    // CRITICAL FIX: Stop any existing scanner first
     if(scannerRef.current){
       try{
         const o=scannerRef.current as{stop:()=>Promise<void>;clear:()=>void;isScanning?:boolean};
@@ -285,17 +286,41 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
       }catch{}
       scannerRef.current=null;
     }
-    // Clear DOM element to prevent double camera
+    
+    // Clear DOM to prevent double camera
     const existing=document.getElementById("qr-reader-kiosk");
     if(existing){existing.innerHTML="";}
     
     try{
       const{Html5Qrcode}=await import("html5-qrcode");
-      const qr=new Html5Qrcode("qr-reader-kiosk");scannerRef.current=qr;
-      await qr.start({facingMode:"environment"},{fps:10,qrbox:{width:220,height:220}},
-        async(text)=>{if(!scannerRef.current)return;scannerRef.current=null;try{await qr.stop();qr.clear();}catch{}setCamReady(false);setStatus("processing");setMessage("Verifying student ID…");await handleQRSuccess(text.trim());},()=>{});
-      setCamReady(true);setStatus("scanning");
-    }catch{setStatus("error");setMessage("Camera unavailable — use manual entry or Google Sign In");setCamReady(false);}
+      const qr=new Html5Qrcode("qr-reader-kiosk");
+      scannerRef.current=qr as unknown;
+      
+      await qr.start(
+        {facingMode:"environment"},
+        {fps:10,qrbox:{width:220,height:220}},
+        async(text)=>{
+          if(!scannerRef.current)return;
+          const currentScanner=scannerRef.current as{stop:()=>Promise<void>;clear:()=>void};
+          scannerRef.current=null;
+          try{
+            await currentScanner.stop();
+            currentScanner.clear();
+          }catch{}
+          setCamReady(false);
+          setStatus("processing");
+          setMessage("Verifying student ID…");
+          await handleQRSuccess(text.trim());
+        },
+        ()=>{}
+      );
+      setCamReady(true);
+      setStatus("scanning");
+    }catch{
+      setStatus("error");
+      setMessage("Camera unavailable — use manual entry or Google Sign In");
+      setCamReady(false);
+    }
   };
 
   const stopQR=async()=>{

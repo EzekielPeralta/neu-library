@@ -48,6 +48,7 @@ export default function RegisterPage() {
   const [photoFile,    setPhotoFile]    = useState<File|null>(null);
   const [photoPreview, setPhotoPreview] = useState<string|null>(null);
   const [showQRModal,  setShowQRModal]  = useState(false);
+  const [studentData,  setStudentData]  = useState<{student_id:string;name:string;college:string;college_code:string;program_name:string;year_level:number|null;employee_status:string;photo_url:string|null}|null>(null);
 
   useEffect(() => { checkSession(); }, []);
 
@@ -136,6 +137,19 @@ export default function RegisterPage() {
     try {
       await supabase.from("user_roles").insert({ email, role: "user" });
     } catch {}
+
+    // Prepare student data for session storage
+    const data = {
+      student_id: studentId.trim(),
+      name: name.trim(),
+      college: collegeDisplay,
+      college_code: selectedCollege.code,
+      program_name: selectedProgram?.name ?? "",
+      year_level: empStatus === "Student" ? yearLevel : null,
+      employee_status: empStatus,
+      photo_url: photoUrl,
+    };
+    setStudentData(data);
 
     setLoading(false);
     setShowQRModal(true);
@@ -361,10 +375,12 @@ export default function RegisterPage() {
         isOpen={showQRModal}
         onClose={() => {
           setShowQRModal(false);
-          // Sign out and redirect to kiosk for manual check-in
-          supabase.auth.signOut().then(() => {
-            router.push("/kiosk");
-          });
+          if (studentData) {
+            sessionStorage.setItem("student", JSON.stringify(studentData));
+            sessionStorage.setItem("kiosk_mode", "true");
+            router.push("/reason");
+            setTimeout(() => supabase.auth.signOut(), 500);
+          }
         }}
         studentId={studentId.trim()}
         studentName={name.trim()}

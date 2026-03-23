@@ -218,7 +218,7 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
     if(sc?.is_blocked){setStatus("error");setMessage("Your access has been restricted. Please contact the library admin.");setTimeout(()=>{setStatus("idle");setMessage("Scan QR or sign in with Google");qrStarted.current=false;startQR();},5000);return;}
     const today=new Date().toISOString().split("T")[0];
     const nowTime=new Date().toTimeString().split(" ")[0];
-    // CRITICAL FIX: Check for existing visit with proper status check
+    // Check for existing visit
     const{data:ex}=await supabase.from("library_visits").select("*").eq("student_id",student.student_id).eq("visit_date",today).is("time_out",null).maybeSingle();
     if(ex){
       // Time out existing visit
@@ -228,14 +228,11 @@ const buildKioskStudent=(s:Record<string,unknown>):KioskStudent=>({
       setStatus("success");setShowResult(true);await supabase.auth.signOut();
       setTimeout(()=>{setShowResult(false);setStatus("idle");setMessage("Scan QR or sign in with Google");qrStarted.current=false;startQR();},5000);
     }else{
-      // Create new visit - SINGLE INSERT ONLY
-      const{error:insertErr}=await supabase.from("library_visits").insert({student_id:student.student_id,visit_date:today,visit_time:nowTime,visit_status:"inside"});
-      if(insertErr){console.error("Insert error:",insertErr);setStatus("error");setMessage("Failed to record visit. Please try again.");setTimeout(()=>{setStatus("idle");setMessage("Scan QR or sign in with Google");qrStarted.current=false;startQR();},3000);return;}
+      // New check-in - redirect to reason page
       sessionStorage.setItem("student",JSON.stringify(student));
       sessionStorage.setItem("kiosk_mode","true");
       setStatus("success");
       setMessage(`Welcome, ${student.name.split(" ")[0]}!`);
-      // Sign out AFTER navigation to prevent session clearing sessionStorage
       router.push("/reason");
       setTimeout(()=>supabase.auth.signOut(), 1500);
     }

@@ -41,13 +41,25 @@ export default function ReasonPage() {
   const handleSubmit = async () => {
     if(!selected||!student) return;
     setLoading(true);
-    const {data:visits} = await supabase.from("library_visits").select("visit_id")
-      .eq("student_id",student.student_id)
-      .order("visit_date",{ascending:false})
-      .order("visit_time",{ascending:false}).limit(1);
-    if(visits?.length) {
-      await supabase.from("library_visits").update({reason:selected}).eq("visit_id",visits[0].visit_id);
+    
+    // Create the visit record with reason
+    const today = new Date().toISOString().split("T")[0];
+    const nowTime = new Date().toTimeString().split(" ")[0];
+    
+    const { error: insertErr } = await supabase.from("library_visits").insert({
+      student_id: student.student_id,
+      visit_date: today,
+      visit_time: nowTime,
+      visit_status: "inside",
+      reason: selected,
+    });
+    
+    if (insertErr) {
+      console.error("Failed to create visit:", insertErr);
+      setLoading(false);
+      return;
     }
+    
     router.push("/welcome");
   };
 

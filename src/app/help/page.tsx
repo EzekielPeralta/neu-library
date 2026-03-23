@@ -110,17 +110,19 @@ export default function HelpPage() {
         }
       }
       
-      // Not logged in, trigger OAuth
+      // Not logged in, trigger OAuth and set flag
+      sessionStorage.setItem('qr_generation_flow', 'true');
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/help?qr=generate`,
+          redirectTo: `${window.location.origin}/login`,
           queryParams: { hd: "neu.edu.ph" }
         }
       });
       if (error) {
         setQrError("Failed to sign in with Google");
         setQrLoading(false);
+        sessionStorage.removeItem('qr_generation_flow');
       }
     } catch (err) {
       console.error("QR Generation Error:", err);

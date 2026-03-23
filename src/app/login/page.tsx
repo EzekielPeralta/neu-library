@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 export default function LoginPage() {
   const router = useRouter();
   useEffect(() => {
-    // Check if this is a QR generation redirect
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("qr") === "generate") {
+    // Check if this is a QR generation flow
+    const isQRFlow = sessionStorage.getItem('qr_generation_flow') === 'true';
+    
+    if (isQRFlow) {
+      sessionStorage.removeItem('qr_generation_flow');
       router.replace("/help?qr=generate");
     } else {
       router.replace("/kiosk");

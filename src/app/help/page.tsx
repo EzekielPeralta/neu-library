@@ -357,7 +357,11 @@ export default function HelpPage() {
 
       <QRCodeModal
         isOpen={showQRModal}
-        onClose={() => setShowQRModal(false)}
+        onClose={() => {
+          setShowQRModal(false);
+          setQrStudentId("");
+          setQrStudentName("");
+        }}
         studentId={qrStudentId}
         studentName={qrStudentName}
       />
